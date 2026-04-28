@@ -1,0 +1,100 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "defaults",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "DAXA_ENABLE_UTILS_FSR3": false,
+        "DAXA_ENABLE_UTILS_IMGUI": true,
+        "DAXA_ENABLE_UTILS_MEM": true,
+        "DAXA_ENABLE_UTILS_PIPELINE_MANAGER_GLSLANG": true,
+        "DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SLANG": false,
+        "DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SPIRV_VALIDATION": false,
+        "DAXA_ENABLE_UTILS_TASK_GRAPH": true,
+        "DAXA_ENABLE_TESTS": false,
+        "DAXA_ENABLE_TOOLS": false,
+        "DAXA_ENABLE_STATIC_ANALYSIS": false
+      }
+    },
+    {
+      "name": "defaults-windows",
+      "hidden": true,
+      "inherits": ["defaults"],
+      "generator": "Visual Studio 17 2022",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "defaults-linux",
+      "hidden": true,
+      "inherits": ["defaults"],
+      "generator": "Ninja",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "windows",
+      "displayName": "Windows (Visual Studio)",
+      "inherits": ["defaults-windows"]
+    },
+    {
+      "name": "linux",
+      "displayName": "Linux (Clang)",
+      "inherits": ["defaults-linux"],
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "clangdb",
+      "inherits": ["defaults"],
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-debug",
+      "displayName": "Windows Debug",
+      "configurePreset": "windows",
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-release",
+      "displayName": "Windows Release",
+      "configurePreset": "windows",
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-debug",
+      "displayName": "Linux Debug (clang)",
+      "configurePreset": "linux",
+      "configuration": "Debug"
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release (clang)",
+      "configurePreset": "linux",
+      "configuration": "Release"
+    }
+  ]
+}
