@@ -41,3 +41,13 @@ if (NOT TARGET fmt::fmt)
     )
   FetchContent_MakeAvailable(fmt)
 endif()
+
+if (NOT TARGET imgui::imgui)
+  FetchContent_Declare(
+        imgui
+        GIT_REPOSITORY https://github.com/ocornut/imgui
+        GIT_TAG        1.92.7
+        EXCLUDE_FROM_ALL
+    )
+  FetchContent_MakeAvailable(imgui)
+endif()

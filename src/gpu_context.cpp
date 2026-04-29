@@ -1,6 +1,6 @@
 #include "gpu_context.hpp"
 
-GPUContext gpu;
+GPUContext gpu = {};
 
 #include <fmt/format.h>
 #include <cassert>

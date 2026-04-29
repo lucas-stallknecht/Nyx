@@ -13,8 +13,9 @@ layout(location = 0) out vec3 v_col;
 void main()
 {
     Vertex vert = deref_i(push.vertex_buffer, gl_VertexIndex);
+    CameraInfo cam = deref(push.cam_buffer);
 
-    gl_Position = vec4(vert.position, 1);
+    gl_Position = cam.proj * cam.view * vec4(vert.position, 1.0);
     v_col = vert.color;
 }
 

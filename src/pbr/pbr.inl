@@ -6,5 +6,6 @@
 
 struct DrawPBRPush
 {
+    daxa_BufferPtr(CameraInfo) cam_buffer;
     daxa_BufferPtr(Vertex) vertex_buffer;
 };

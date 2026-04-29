@@ -13,6 +13,7 @@ add_executable(${PROJECT_NAME}
   src/main.cpp
   src/window.cpp
   src/gpu_context.cpp
+  src/camera.cpp
 )
 
 target_precompile_headers(${PROJECT_NAME}
