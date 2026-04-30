@@ -2,7 +2,7 @@
 
 mat4 Camera::get_proj(f32 aspect_ratio)
 {
-    mat4 proj = glm::perspective(glm::radians(fov), aspect_ratio, NEAR, FAR);
+    mat4 proj = glm::perspective(glm::radians(fov), aspect_ratio, near, plane);
     proj[1][1] *= -1.0f; // Flip for Vulkan clip space
     return proj;
 }
@@ -14,17 +14,16 @@ mat4 Camera::get_view()
     return rot * trans;
 }
 
-void Camera::move(f32 dfor, f32 dup, f32 dright)
-{
-    position += get_forward() * dfor * MOVE_SPEED;
-    position += get_up() * dup * MOVE_SPEED;
-    position += get_right() * dright * MOVE_SPEED;
-}
+void Camera::move_forward(f32 d) { position += get_forward() * d * move_speed; }
+
+void Camera::move_up(f32 d) { position += get_up() * d * move_speed; }
+
+void Camera::move_right(f32 d) { position += get_right() * d * move_speed; }
 
 void Camera::rotate(vec2 delta)
 {
-    float yaw = -delta.x * LOOK_SENSITIVITY;
-    float pitch = -delta.y * LOOK_SENSITIVITY;
+    float yaw = -delta.x * look_sensitivity;
+    float pitch = -delta.y * look_sensitivity;
     pitch = glm::clamp(pitch, -89.0f, 89.0f);
 
     // World up

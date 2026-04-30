@@ -5,14 +5,20 @@
 WindowInitResult Window::init()
 {
     if (glfwInit() == GLFW_FALSE)
+    {
+        fmt::println("Failed to init GLFW");
         return WindowInitResult::GLFW_Init_Failed;
+    }
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     glfw_window_ptr =
         glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), "GPU Playground", nullptr, nullptr);
     if (glfw_window_ptr == nullptr)
+    {
+        fmt::println("Failed to create window");
         return WindowInitResult::Create_Window_Failed;
+    }
 
     glfwSetWindowUserPointer(glfw_window_ptr, this);
     glfwSetWindowSizeCallback(glfw_window_ptr,

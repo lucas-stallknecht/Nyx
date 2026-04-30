@@ -21,7 +21,7 @@ int main()
 
     Camera camera = {};
 
-    gpu_context_init(window);
+    gpu.init(window);
     std::shared_ptr<daxa::RasterPipeline> pbr_pipeline =
         gpu.pipeline_manager
             .add_raster_pipeline2({
@@ -114,17 +114,17 @@ int main()
 
         camera.rotate(dt * window.consume_mouse_delta());
         if (window.pressed_keys[GLFW_KEY_W])
-            camera.move(dt, 0.0f, 0.0f);
+            camera.move_forward(dt);
         if (window.pressed_keys[GLFW_KEY_S])
-            camera.move(-dt, 0.0f, 0.0f);
-        if (window.pressed_keys[GLFW_KEY_A])
-            camera.move(0.0f, 0.0f, -dt);
+            camera.move_forward(-dt);
         if (window.pressed_keys[GLFW_KEY_D])
-            camera.move(0.0f, 0.0f, dt);
+            camera.move_right(dt);
+        if (window.pressed_keys[GLFW_KEY_A])
+            camera.move_right(-dt);
         if (window.pressed_keys[GLFW_KEY_SPACE])
-            camera.move(0.0f, dt, 0.0f);
+            camera.move_up(dt);
         if (window.pressed_keys[GLFW_KEY_LEFT_CONTROL])
-            camera.move(0.0f, -dt, 0.0f);
+            camera.move_up(-dt);
 
         daxa::ImageId new_image = gpu.swapchain.acquire_next_image();
         if (new_image.is_empty())

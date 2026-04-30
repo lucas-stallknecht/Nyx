@@ -5,7 +5,7 @@ GPUContext gpu = {};
 #include <fmt/format.h>
 #include <cassert>
 
-void gpu_context_init(Window const & window)
+void GPUContext::init(Window const & window)
 {
     assert(!gpu.initialized && "GPUContext already initialized");
     assert(window.glfw_window_ptr && "Window must be initialized before GPUContext");

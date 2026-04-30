@@ -11,8 +11,8 @@ struct GPUContext
     daxa::Swapchain swapchain;
     daxa::PipelineManager pipeline_manager;
     bool initialized = false;
+
+    void init(Window const & window);
 };
 
 extern GPUContext gpu;
-
-void gpu_context_init(Window const & window);
