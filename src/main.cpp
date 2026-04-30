@@ -1,4 +1,6 @@
+#include "asset_manager.hpp"
 #include "pbr/pbr.inl"
+#include "utils/upload.hpp"
 #include "window.hpp"
 #include "camera.hpp"
 #include "gpu_context.hpp"
@@ -10,7 +12,7 @@
 
 int main()
 {
-    auto window = Window(800, 600);
+    auto window = Window(1600, 900);
     WindowInitResult window_res = window.init();
     if (window_res != WindowInitResult::Success)
     {
@@ -28,23 +30,28 @@ int main()
                 .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"pbr/pbr.glsl"}},
                 .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"pbr/pbr.glsl"}},
                 .color_attachments = {{.format = gpu.swapchain.get_format()}},
-                .raster = {},
+                .depth_test =
+                    daxa::DepthTestInfo{
+                        .depth_attachment_format = daxa::Format::D32_SFLOAT,
+                        .enable_depth_write = true,
+                    },
                 .push_constant_size = sizeof(DrawPBRPush),
                 .name = "pbr pipeline",
             })
             .value();
 
-    daxa::BufferId vertex_buffer = gpu.device.create_buffer({
-        .size = sizeof(Vertex) * 3,
-        .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
-        .name = "tringle data",
-    });
-    auto * buffer_ptr = gpu.device.buffer_host_address_as<std::array<Vertex, 3>>(vertex_buffer).value();
-    *buffer_ptr = std::array{
-        Vertex{.position = {-0.5f, -0.5f, 0.0f}, .color = {0.329f, 0.173f, 0.612f}},
-        Vertex{.position = {+0.5f, -0.5f, 0.0f}, .color = {0.455f, 0.286f, 0.682f}},
-        Vertex{.position = {+0.0f, +0.5f, 0.0f}, .color = {0.671f, 0.506f, 0.816f}},
+    auto data = std::array{
+        Vertex{.position = {-0.5f, -0.5f, 0.0f}, .uv = {0.329f, 0.173f}},
+        Vertex{.position = {+0.5f, -0.5f, 0.0f}, .uv = {0.455f, 0.286f}},
+        Vertex{.position = {+0.0f, +0.5f, 0.0f}, .uv = {0.671f, 0.506f}},
     };
+    daxa::BufferId vertex_buffer = create_and_upload_buffer(data.data(), {
+                                                                             .size = data.size() * sizeof(Vertex),
+                                                                             .name = "vertex buffer",
+                                                                         });
+    Handle sponza_handle = {};
+    asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza.glb", sponza_handle);
+    Model * sponza = asset_manager.models.get(sponza_handle);
 
     daxa::BufferId cam_buffer = gpu.device.create_buffer({
         .size = sizeof(CameraInfo),
@@ -57,30 +64,49 @@ int main()
         .swapchain = gpu.swapchain,
         .name = "loop",
     });
-    auto swapchain_image = daxa::ExternalTaskImage({
+    auto t_swapchain_image = daxa::ExternalTaskImage({
         .is_swapchain_image = true,
         .name = "task swapchain image",
     });
 
-    loop_task_graph.register_image(swapchain_image);
+    daxa::ImageId depth_image = gpu.device.create_image({
+        .format = daxa::Format::D32_SFLOAT,
+        .size = {.x = window.width, .y = window.height, .z = 1},
+        .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT,
+        .name = "depth image",
+    });
+    auto t_depth_image = daxa::ExternalTaskImage({
+        .image = depth_image,
+        .name = "task depth image",
+    });
+
+    loop_task_graph.register_image(t_swapchain_image);
+    loop_task_graph.register_image(t_depth_image);
     loop_task_graph.add_task(
         daxa::RasterTask("draw pbr")
-            .color_attachment.writes(swapchain_image)
+            .color_attachment.writes(t_swapchain_image)
+            .depth_stencil_attachment.writes(t_depth_image)
             .executes(
-                [pbr = pbr_pipeline.get(), view = swapchain_image.view(), cam = &camera, cam_buffer,
-                 vertex_buffer](daxa::TaskInterface ti)
+                [pbr = pbr_pipeline.get(), color_target = t_swapchain_image.view(), depth_target = t_depth_image.view(),
+                 cam = &camera, cam_buffer, sponza](daxa::TaskInterface ti)
                 {
-                    auto size = ti.info(view).value().size;
+                    auto size = ti.info(color_target).value().size;
                     daxa::RenderCommandRecorder cr =
                         std::move(ti.recorder)
                             .begin_renderpass({
                                 .color_attachments =
                                     std::array{
                                         daxa::RenderAttachmentInfo{
-                                            .image_view = ti.view(view),
+                                            .image_view = ti.view(color_target),
                                             .load_op = daxa::AttachmentLoadOp::CLEAR,
                                             .clear_value = std::array<daxa::f32, 4>{0.1f, 0.1f, 0.1f, 1.0f},
                                         },
+                                    },
+                                .depth_attachment =
+                                    daxa::RenderAttachmentInfo{
+                                        .image_view = ti.view(depth_target),
+                                        .load_op = daxa::AttachmentLoadOp::CLEAR,
+                                        .clear_value = daxa::DepthValue{.depth = 1.0f, .stencil = 0},
                                     },
                                 .render_area = {.width = size.x, .height = size.y},
                             });
@@ -93,11 +119,27 @@ int main()
                         .view = std::bit_cast<daxa_f32mat4x4>(cam->get_view()),
                     };
 
-                    cr.push_constant(DrawPBRPush{
-                        .cam_buffer = ti.device.device_address(cam_buffer).value(),
-                        .vertex_buffer = ti.device.device_address(vertex_buffer).value(),
-                    });
-                    cr.draw({.vertex_count = 3});
+                    for (auto & mesh : sponza->meshes)
+                    {
+                        cr.set_index_buffer({
+                            .buffer = mesh.index_buffer,
+                            .index_type = daxa::IndexType::uint32,
+                        });
+                        cr.push_constant(DrawPBRPush{
+                            .model_matrix = std::bit_cast<daxa_f32mat4x4>(sponza->nodes[mesh.node_idx].local_matrix),
+                            .cam_buffer = ti.device.device_address(cam_buffer).value(),
+                            .vertex_buffer = ti.device.device_address(mesh.vertex_buffer).value(),
+                        });
+
+                        for (auto & prim : mesh.primitives)
+                        {
+                            cr.draw_indexed({
+                                .index_count = prim.index_count,
+                                .first_index = prim.index_offset,
+                            });
+                        }
+                    }
+
                     ti.recorder = std::move(cr).end_renderpass();
                 }));
     loop_task_graph.submit({});
@@ -129,7 +171,7 @@ int main()
         daxa::ImageId new_image = gpu.swapchain.acquire_next_image();
         if (new_image.is_empty())
             continue;
-        swapchain_image.set_image(new_image);
+        t_swapchain_image.set_image(new_image);
         loop_task_graph.execute({});
 
         if (window.swapchain_out_of_date)
@@ -140,8 +182,11 @@ int main()
         gpu.device.collect_garbage();
     }
 
+    gpu.device.destroy_image(depth_image);
     gpu.device.destroy_buffer(vertex_buffer);
     gpu.device.destroy_buffer(cam_buffer);
     window.cleanup();
+    asset_manager.cleanup();
+
     return 0;
 }

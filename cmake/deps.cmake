@@ -46,8 +46,18 @@ if (NOT TARGET imgui::imgui)
   FetchContent_Declare(
         imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui
-        GIT_TAG        1.92.7
+        GIT_TAG        master
         EXCLUDE_FROM_ALL
     )
   FetchContent_MakeAvailable(imgui)
+endif()
+
+if (NOT TARGET fastgltf::fastgltf)
+  FetchContent_Declare(
+        fastgltf
+        GIT_REPOSITORY https://github.com/spnda/fastgltf
+        GIT_TAG        v0.9.0
+        EXCLUDE_FROM_ALL
+    )
+  FetchContent_MakeAvailable(fastgltf)
 endif()
