@@ -68,6 +68,19 @@ namespace
                         { vertices[idx + vertex_offset].normal = {normal.x(), normal.y(), normal.z()}; });
                 }
 
+                if (auto const * tangent_attr = prim.findAttribute("TANGENT");
+                    tangent_attr != nullptr && tangent_attr != prim.attributes.end())
+                {
+                    fastgltf::Accessor & tangent_accessor = asset.accessors[tangent_attr->accessorIndex];
+                    fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec4>(
+                        asset, tangent_accessor,
+                        [&](fastgltf::math::fvec4 tangent, std::size_t idx)
+                        {
+                            vertices[idx + vertex_offset].tangent = {tangent.x(), tangent.y(), tangent.z(),
+                                                                     tangent.w()};
+                        });
+                }
+
                 // Should not happen thanks to the gltf_option
                 if (!prim.indicesAccessor.has_value())
                     continue;
@@ -79,10 +92,12 @@ namespace
                 fastgltf::iterateAccessor<std::uint32_t>(asset, index_accessor, [&](std::uint32_t idx)
                                                          { indices.push_back(idx + vertex_offset); });
 
-                i32 material_idx = -1;
+                // We keep a sentinel material at index 0 in model->materials, so shift glTF material
+                // indices by +1 when storing them in SubMesh to point at the correct material.
+                u32 material_idx = 0;
                 if (prim.materialIndex.has_value())
                 {
-                    material_idx = static_cast<i32>(prim.materialIndex.value());
+                    material_idx = static_cast<u32>(prim.materialIndex.value()) + 1u;
                 }
 
                 out_mesh.sub_meshes.push_back({
@@ -242,41 +257,84 @@ namespace
         }
     }
 
+    daxa::ImageId find_cached_image_from_texture(fastgltf::Asset const & asset, fastgltf::Texture const & texture,
+                                                 LocalImageCache const & image_cache)
+    {
+        fastgltf::Image const * img = nullptr;
+
+        if (texture.imageIndex.has_value())
+            img = &asset.images[texture.imageIndex.value()];
+        else if (texture.basisuImageIndex.has_value())
+            img = &asset.images[texture.basisuImageIndex.value()];
+        else if (texture.ddsImageIndex.has_value())
+            img = &asset.images[texture.ddsImageIndex.value()];
+        else if (texture.webpImageIndex.has_value())
+            img = &asset.images[texture.webpImageIndex.value()];
+
+        if (!img)
+            return {};
+
+        auto it = image_cache.find(img);
+        if (it == image_cache.end())
+            return {};
+
+        return it->second;
+    }
+
     void build_materials(Model * model, fastgltf::Asset & asset, LocalImageCache const & image_cache)
     {
-        model->materials.reserve(asset.materials.size());
+        model->materials.reserve(1 + asset.materials.size());
+        // Sentinel material
+        model->materials.push_back({});
+
         for (auto const & mat : asset.materials)
         {
             Material out_mat;
+            auto & col = mat.pbrData.baseColorFactor;
+            out_mat.base_color = {col.x(), col.y(), col.z()};
+            out_mat.metallic = mat.pbrData.metallicFactor;
+            out_mat.roughness = mat.pbrData.roughnessFactor;
 
             if (mat.pbrData.baseColorTexture)
             {
-                auto const & tex_info = *mat.pbrData.baseColorTexture;
-                auto const & texture = asset.textures[tex_info.textureIndex];
+                auto texture = asset.textures.at(mat.pbrData.baseColorTexture->textureIndex);
+                out_mat.base_color_texture = find_cached_image_from_texture(asset, texture, image_cache);
+            }
 
-                fastgltf::Image const * img = nullptr;
+            if (mat.pbrData.metallicRoughnessTexture)
+            {
+                auto texture = asset.textures.at(mat.pbrData.metallicRoughnessTexture->textureIndex);
+                out_mat.metallic_roughness_texture = find_cached_image_from_texture(asset, texture, image_cache);
+            }
 
-                if (texture.imageIndex.has_value())
-                    img = &asset.images[texture.imageIndex.value()];
-                else if (texture.basisuImageIndex.has_value())
-                    img = &asset.images[texture.basisuImageIndex.value()];
-                else if (texture.ddsImageIndex.has_value())
-                    img = &asset.images[texture.ddsImageIndex.value()];
-                else if (texture.webpImageIndex.has_value())
-                    img = &asset.images[texture.webpImageIndex.value()];
-
-                if (img)
-                {
-                    auto it = image_cache.find(img);
-                    if (it != image_cache.end())
-                    {
-                        out_mat.base_color_texture = it->second;
-                    }
-                }
+            if (mat.normalTexture)
+            {
+                auto texture = asset.textures.at(mat.normalTexture->textureIndex);
+                out_mat.normal_texture = find_cached_image_from_texture(asset, texture, image_cache);
             }
 
             model->materials.push_back(out_mat);
         }
+
+        // There is a single material buffer for the whole model
+        std::vector<GPUMaterial> gpu_mats = {};
+        gpu_mats.reserve(model->materials.size());
+        for (auto & cpu_mat : model->materials)
+        {
+            gpu_mats.push_back({
+                .base_color = cpu_mat.base_color,
+                .metallic = cpu_mat.metallic,
+                .roughness = cpu_mat.roughness,
+                .base_color_texture = cpu_mat.base_color_texture.default_view(),
+                .metallic_roughness_texture = cpu_mat.metallic_roughness_texture.default_view(),
+                .normal_texture = cpu_mat.normal_texture.default_view(),
+            });
+        }
+        model->material_buffer =
+            create_and_upload_buffer(gpu_mats.data(), {
+                                                          .size = model->materials.size() * sizeof(GPUMaterial),
+                                                          .name = "material buffer",
+                                                      });
     }
 } // namespace
 

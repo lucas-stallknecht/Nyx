@@ -13,6 +13,7 @@ struct Vertex
 {
     daxa_f32vec3 position;
     daxa_f32vec3 normal;
+    daxa_f32vec4 tangent;
     daxa_f32vec2 uv;
 };
 DAXA_DECL_BUFFER_PTR(Vertex)

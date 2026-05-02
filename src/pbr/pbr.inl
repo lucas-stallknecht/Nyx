@@ -7,8 +7,9 @@
 struct DrawPBRPush
 {
     daxa_f32mat4x4 model_matrix;
-    daxa_ImageViewId color_texture;
+    daxa_u32 material_idx;
     daxa_SamplerId default_sampler;
     daxa_BufferPtr(CameraInfo) cam_buffer;
+    daxa_BufferPtr(GPUMaterial) material_buffer;
     daxa_BufferPtr(Vertex) vertex_buffer;
 };

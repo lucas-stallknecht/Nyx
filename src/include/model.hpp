@@ -14,7 +14,7 @@ struct SubMesh
 {
     u32 index_count = 0;
     u32 index_offset = 0;
-    i32 material_idx = -1;
+    u32 material_idx = 0;
 };
 
 struct Mesh
@@ -39,6 +39,7 @@ struct Model
     Handle handle = {};
     std::vector<Node> nodes = {};
     std::vector<Mesh> meshes = {};
+    daxa::BufferId material_buffer;
     std::vector<Material> materials = {};
     std::vector<daxa::ImageId> images = {};
 };

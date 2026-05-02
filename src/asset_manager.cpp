@@ -13,12 +13,17 @@ void AssetManager::cleanup()
 {
     for (usize i = 0; i < models.items_count; i++)
     {
-        for (auto & mesh : models.items[i].meshes)
+        auto & model = models.items[i];
+        if (!model.material_buffer.is_empty())
+        {
+            gpu.device.destroy_buffer(model.material_buffer);
+        }
+        for (auto & mesh : model.meshes)
         {
             gpu.device.destroy_buffer(mesh.vertex_buffer);
             gpu.device.destroy_buffer(mesh.index_buffer);
         };
-        for (auto & image : models.items[i].images)
+        for (auto & image : model.images)
         {
             gpu.device.destroy_image(image);
         };

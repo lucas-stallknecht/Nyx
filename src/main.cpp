@@ -11,7 +11,7 @@
 
 int main()
 {
-    auto window = Window(1600, 900);
+    auto window = Window(1920, 1080);
     WindowInitResult window_res = window.init();
     if (window_res != WindowInitResult::Success)
     {
@@ -41,7 +41,6 @@ int main()
 
     Handle sponza_handle = {};
     asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb", sponza_handle);
-    fmt::println("sponza handle {} {}", sponza_handle.idx, sponza_handle.gen);
     Model * sponza = asset_manager.models.get(sponza_handle);
 
     daxa::BufferId cam_buffer = gpu.device.create_buffer({
@@ -53,8 +52,12 @@ int main()
     daxa::SamplerId default_sampler = gpu.device.create_sampler({
         .magnification_filter = daxa::Filter::LINEAR,
         .minification_filter = daxa::Filter::LINEAR,
+        .mipmap_filter = daxa::Filter::LINEAR,
         .address_mode_u = daxa::SamplerAddressMode::REPEAT,
         .address_mode_v = daxa::SamplerAddressMode::REPEAT,
+        .mip_lod_bias = -0.5f,
+        .enable_anisotropy = true,
+        .max_anisotropy = 8.0f,
         .name = "default linear sampler",
     });
 
@@ -133,15 +136,11 @@ int main()
                         push.default_sampler = default_sampler;
                         push.cam_buffer = ti.device.device_address(cam_buffer).value();
                         push.vertex_buffer = ti.device.device_address(mesh.vertex_buffer).value();
+                        push.material_buffer = ti.device.device_address(sponza->material_buffer).value();
 
                         for (auto & sub : mesh.sub_meshes)
                         {
-                            auto & material = sponza->materials[sub.material_idx];
-                            push.color_texture = static_cast<daxa_ImageViewId>(0);
-                            if (!material.base_color_texture.is_empty())
-                            {
-                                push.color_texture = material.base_color_texture.default_view();
-                            }
+                            push.material_idx = static_cast<daxa_u32>(sub.material_idx);
                             cr.push_constant(push);
                             cr.draw_indexed({
                                 .index_count = sub.index_count,
@@ -160,6 +159,7 @@ int main()
     while (!window.should_close())
     {
         window.update();
+        auto reloaded_result = gpu.pipeline_manager.reload_all();
 
         auto & io = ImGui::GetIO();
         f32 dt = io.DeltaTime;
@@ -191,7 +191,7 @@ int main()
         }
         gpu.device.collect_garbage();
     }
-
+    gpu.device.wait_idle();
     gpu.device.destroy_sampler(default_sampler);
     gpu.device.destroy_image(depth_image);
     gpu.device.destroy_buffer(cam_buffer);
