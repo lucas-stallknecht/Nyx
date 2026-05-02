@@ -17,13 +17,13 @@ struct Vertex
 };
 DAXA_DECL_BUFFER_PTR(Vertex)
 
-struct Material
+struct GPUMaterial
 {
-    daxa_f32vec3 color;
+    daxa_f32vec3 base_color;
     daxa_f32 metallic;
     daxa_f32 roughness;
-    // daxa_ImageId color_texture;
-    // daxa_ImageId metallic_roughness_texture;
-    // daxa_ImageId normal_texture;
+    daxa_ImageViewId base_color_texture;
+    daxa_ImageViewId metallic_roughness_texture;
+    daxa_ImageViewId normal_texture;
 };
-DAXA_DECL_BUFFER_PTR(Material)
+DAXA_DECL_BUFFER_PTR(GPUMaterial)

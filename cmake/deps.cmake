@@ -61,3 +61,15 @@ if (NOT TARGET fastgltf::fastgltf)
     )
   FetchContent_MakeAvailable(fastgltf)
 endif()
+
+if (NOT TARGET KTX::ktx)
+  option(KTX_FEATURE_TESTS "" OFF)
+  FetchContent_Declare(
+        ktx
+        GIT_REPOSITORY https://github.com/KhronosGroup/KTX-Software
+        GIT_TAG        v4.4.2
+        EXCLUDE_FROM_ALL
+    )
+  FetchContent_MakeAvailable(ktx)
+  add_library(KTX::ktx ALIAS ktx)
+endif()

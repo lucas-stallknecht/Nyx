@@ -11,27 +11,30 @@ AssetManager asset_manager = {};
 
 void AssetManager::cleanup()
 {
-    for (usize i = 0; i < asset_manager.models.items_count; i++)
+    for (usize i = 0; i < models.items_count; i++)
     {
-        for (auto & mesh : asset_manager.models.items[i].meshes)
+        for (auto & mesh : models.items[i].meshes)
         {
             gpu.device.destroy_buffer(mesh.vertex_buffer);
             gpu.device.destroy_buffer(mesh.index_buffer);
-        }
-        // Do something
+        };
+        for (auto & image : models.items[i].images)
+        {
+            gpu.device.destroy_image(image);
+        };
     }
-    asset_manager.model_cache.clear();
+    model_cache.clear();
 }
 
-AssetManager::LoadModelResult AssetManager::load_model(std::string_view const & path, Handle & out)
+AssetManager::LoadModelResult AssetManager::load_model(std::string_view path, Handle & out)
 {
     fmt::println("Loading {}", path);
 
     std::filesystem::path file_path = path;
 
-    if (model_cache.contains(path.data()))
+    if (model_cache.contains(file_path.string()))
     {
-        out = model_cache.at(path.data());
+        out = model_cache.at(file_path.string());
         return LoadModelResult::Success;
     }
 
@@ -41,9 +44,6 @@ AssetManager::LoadModelResult AssetManager::load_model(std::string_view const & 
         return LoadModelResult::File_Not_Found;
     }
 
-    constexpr auto options = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble |
-                             fastgltf::Options::LoadExternalBuffers | fastgltf::Options::GenerateMeshIndices;
-    ;
     auto gltf = fastgltf::MappedGltfFile::FromPath(path);
     if (!bool(gltf))
     {
@@ -51,17 +51,24 @@ AssetManager::LoadModelResult AssetManager::load_model(std::string_view const & 
         return LoadModelResult::Failed_To_Load;
     }
 
-    fastgltf::Parser parser{};
+    constexpr auto extensions = fastgltf::Extensions::KHR_texture_basisu;
+
+    fastgltf::Parser parser{extensions};
+
+    constexpr auto options = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble |
+                             fastgltf::Options::LoadExternalBuffers | fastgltf::Options::GenerateMeshIndices;
+    ;
     auto asset = parser.loadGltf(gltf.get(), file_path.parent_path(), options);
     if (!asset)
     {
-        fmt::println("Failed to load gltf: {}", fastgltf::to_underlying(asset.error()));
+        fmt::println("Failed to load gltf: {}", fastgltf::getErrorMessage(asset.error()));
         return LoadModelResult::Failed_To_Load;
     }
     out = models.insert({});
     Model * model = models.get(out);
 
     build_gltf_model(model, asset.get());
+    model_cache.insert({file_path.string(), out});
 
     return LoadModelResult::Success;
 }
