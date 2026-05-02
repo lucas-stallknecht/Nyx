@@ -9,6 +9,13 @@ struct CameraInfo
 };
 DAXA_DECL_BUFFER_PTR(CameraInfo);
 
+struct LightInfo
+{
+    daxa_f32vec3 dir_pos;
+    daxa_f32mat4x4 dir_matrix;
+};
+DAXA_DECL_BUFFER_PTR(LightInfo);
+
 struct Vertex
 {
     daxa_f32vec3 position;

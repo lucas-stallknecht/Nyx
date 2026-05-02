@@ -1,5 +1,7 @@
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "asset_manager.hpp"
-#include "pbr/pbr.inl"
+#include "rendering/pbr/pbr.inl"
+#include "rendering/shadow_mapping/shadow_mapping.inl"
 #include "window.hpp"
 #include "camera.hpp"
 #include "gpu_context.hpp"
@@ -9,9 +11,12 @@
 #include <fmt/ranges.h>
 #include <imgui.h>
 
+static constexpr usize SHADOW_MAP_SIZE = 2048;
+static constexpr vec3 DIR_LIGHT_POSITION = {0.0f, 20.0f, 3.0f};
+
 int main()
 {
-    auto window = Window(1920, 1080);
+    auto window = Window(1600, 900);
     WindowInitResult window_res = window.init();
     if (window_res != WindowInitResult::Success)
     {
@@ -26,16 +31,39 @@ int main()
     std::shared_ptr<daxa::RasterPipeline> pbr_pipeline =
         gpu.pipeline_manager
             .add_raster_pipeline2({
-                .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"pbr/pbr.glsl"}},
-                .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"pbr/pbr.glsl"}},
+                .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/pbr/pbr.glsl"}},
+                .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/pbr/pbr.glsl"}},
                 .color_attachments = {{.format = gpu.swapchain.get_format()}},
                 .depth_test =
                     daxa::DepthTestInfo{
                         .depth_attachment_format = daxa::Format::D32_SFLOAT,
                         .enable_depth_write = true,
                     },
+                .raster = {.face_culling = daxa::FaceCullFlagBits::FRONT_BIT},
                 .push_constant_size = sizeof(DrawPBRPush),
                 .name = "pbr pipeline",
+            })
+            .value();
+    std::shared_ptr<daxa::RasterPipeline> shadow_depth_pipeline =
+        gpu.pipeline_manager
+            .add_raster_pipeline2({
+                .vertex_shader_info =
+                    daxa::ShaderCompileInfo2{.source =
+                                                 daxa::ShaderFile{"rendering/shadow_mapping/shadow_mapping.glsl"}},
+                .fragment_shader_info =
+                    daxa::ShaderCompileInfo2{.source =
+                                                 daxa::ShaderFile{"rendering/shadow_mapping/shadow_mapping.glsl"}},
+                .depth_test =
+                    daxa::DepthTestInfo{
+                        .depth_attachment_format = daxa::Format::D32_SFLOAT,
+                        .enable_depth_write = true,
+                    },
+                .raster =
+                    {
+                        .face_culling = daxa::FaceCullFlagBits::BACK_BIT,
+                    },
+                .push_constant_size = sizeof(DrawDirectionalDepthMap),
+                .name = "shadow depth pipeline",
             })
             .value();
 
@@ -49,6 +77,19 @@ int main()
         .name = "camera buffer",
     });
 
+    daxa::BufferId light_buffer = gpu.device.create_buffer({
+        .size = sizeof(LightInfo),
+        .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
+        .name = "light buffer",
+    });
+    glm::mat4 light_proj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 50.0f);
+    glm::mat4 light_view = glm::lookAt(DIR_LIGHT_POSITION, {}, {0.0f, 1.0f, 0.0f});
+    auto * buffer_ptr = gpu.device.buffer_host_address_as<LightInfo>(light_buffer).value();
+    *buffer_ptr = {
+        .dir_pos = std::bit_cast<daxa_f32vec3>(DIR_LIGHT_POSITION),
+        .dir_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view),
+    };
+
     daxa::SamplerId default_sampler = gpu.device.create_sampler({
         .magnification_filter = daxa::Filter::LINEAR,
         .minification_filter = daxa::Filter::LINEAR,
@@ -59,6 +100,14 @@ int main()
         .enable_anisotropy = true,
         .max_anisotropy = 8.0f,
         .name = "default linear sampler",
+    });
+    daxa::SamplerId shadow_sampler = gpu.device.create_sampler({
+        .magnification_filter = daxa::Filter::LINEAR,
+        .minification_filter = daxa::Filter::LINEAR,
+        .mipmap_filter = daxa::Filter::LINEAR,
+        .address_mode_u = daxa::SamplerAddressMode::CLAMP_TO_BORDER,
+        .address_mode_v = daxa::SamplerAddressMode::CLAMP_TO_BORDER,
+        .name = "shadow sampler",
     });
 
     auto loop_task_graph = daxa::TaskGraph({
@@ -81,16 +130,74 @@ int main()
         .image = depth_image,
         .name = "task depth image",
     });
+    daxa::ImageId shadow_depth_map = gpu.device.create_image({
+        .format = daxa::Format::D32_SFLOAT,
+        .size = {.x = SHADOW_MAP_SIZE, .y = SHADOW_MAP_SIZE, .z = 1},
+        .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED,
+        .name = "shadow depth map",
+    });
+    auto t_shadow_depth_map = daxa::ExternalTaskImage({
+        .image = shadow_depth_map,
+        .name = "task shadow depth map",
+    });
 
     loop_task_graph.register_image(t_swapchain_image);
     loop_task_graph.register_image(t_depth_image);
+    loop_task_graph.register_image(t_shadow_depth_map);
+    loop_task_graph.add_task(
+        daxa::RasterTask("draw shadow depth map")
+            .depth_stencil_attachment.writes(t_shadow_depth_map)
+            .executes(
+                [pipeline = shadow_depth_pipeline.get(), depth_target = t_shadow_depth_map.view(), light_buffer,
+                 sponza](daxa::TaskInterface ti)
+                {
+                    daxa::RenderCommandRecorder cr =
+                        std::move(ti.recorder)
+                            .begin_renderpass({
+                                .depth_attachment =
+                                    daxa::RenderAttachmentInfo{
+                                        .image_view = ti.view(depth_target),
+                                        .load_op = daxa::AttachmentLoadOp::CLEAR,
+                                        .clear_value = daxa::DepthValue{.depth = 1.0f, .stencil = 0},
+                                    },
+                                .render_area = {.width = SHADOW_MAP_SIZE, .height = SHADOW_MAP_SIZE},
+                            });
+                    cr.set_pipeline(*pipeline);
+                    DrawDirectionalDepthMap push;
+                    push.light_buffer = ti.device.device_address(light_buffer).value();
+                    for (auto & node : sponza->nodes)
+                    {
+                        if (node.mesh_idx < -1)
+                            continue;
+
+                        auto & mesh = sponza->meshes[node.mesh_idx];
+                        cr.set_index_buffer({
+                            .buffer = mesh.index_buffer,
+                            .index_type = daxa::IndexType::uint32,
+                        });
+                        push.model_matrix = std::bit_cast<daxa_f32mat4x4>(node.local_transform);
+                        push.vertex_buffer = ti.device.device_address(mesh.vertex_buffer).value();
+                        cr.push_constant(push);
+
+                        for (auto & sub : mesh.sub_meshes)
+                        {
+                            cr.draw_indexed({
+                                .index_count = sub.index_count,
+                                .first_index = sub.index_offset,
+                            });
+                        }
+                    }
+                    ti.recorder = std::move(cr).end_renderpass();
+                }));
     loop_task_graph.add_task(
         daxa::RasterTask("draw pbr")
+            .reads(daxa::TaskStages::FRAGMENT_SHADER, t_shadow_depth_map)
             .color_attachment.writes(t_swapchain_image)
             .depth_stencil_attachment.writes(t_depth_image)
             .executes(
                 [pbr = pbr_pipeline.get(), color_target = t_swapchain_image.view(), depth_target = t_depth_image.view(),
-                 cam = &camera, cam_buffer, sponza, default_sampler](daxa::TaskInterface ti)
+                 shadow_map = t_shadow_depth_map.view(), cam = &camera, cam_buffer, light_buffer, sponza,
+                 default_sampler, shadow_sampler](daxa::TaskInterface ti)
                 {
                     auto size = ti.info(color_target).value().size;
                     daxa::RenderCommandRecorder cr =
@@ -132,9 +239,12 @@ int main()
                             .index_type = daxa::IndexType::uint32,
                         });
                         DrawPBRPush push = {};
+                        push.shadow_map = ti.view(shadow_map);
                         push.model_matrix = std::bit_cast<daxa_f32mat4x4>(node.local_transform);
                         push.default_sampler = default_sampler;
+                        push.shadow_sampler = shadow_sampler;
                         push.cam_buffer = ti.device.device_address(cam_buffer).value();
+                        push.light_buffer = ti.device.device_address(light_buffer).value();
                         push.vertex_buffer = ti.device.device_address(mesh.vertex_buffer).value();
                         push.material_buffer = ti.device.device_address(sponza->material_buffer).value();
 
@@ -160,6 +270,10 @@ int main()
     {
         window.update();
         auto reloaded_result = gpu.pipeline_manager.reload_all();
+        if (auto reload_err = daxa::get_if<daxa::PipelineReloadError>(&reloaded_result))
+            fmt::println("Failed to reload shaders: {}", reload_err->message);
+        if (daxa::get_if<daxa::PipelineReloadSuccess>(&reloaded_result))
+            fmt::println("Shaders successfuly reloaded");
 
         auto & io = ImGui::GetIO();
         f32 dt = io.DeltaTime;
@@ -193,8 +307,11 @@ int main()
     }
     gpu.device.wait_idle();
     gpu.device.destroy_sampler(default_sampler);
+    gpu.device.destroy_sampler(shadow_sampler);
     gpu.device.destroy_image(depth_image);
+    gpu.device.destroy_image(shadow_depth_map);
     gpu.device.destroy_buffer(cam_buffer);
+    gpu.device.destroy_buffer(light_buffer);
     window.cleanup();
     asset_manager.cleanup();
 
