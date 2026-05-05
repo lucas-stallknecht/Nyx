@@ -11,10 +11,19 @@ DAXA_DECL_BUFFER_PTR(CameraInfo);
 
 struct LightInfo
 {
-    daxa_f32vec3 dir_pos;
-    daxa_f32mat4x4 dir_matrix;
+    daxa_f32vec3 sun_dir;
+    daxa_f32mat4x4 sun_matrix;
 };
 DAXA_DECL_BUFFER_PTR(LightInfo);
+
+struct GlobalRenderingBuffer
+{
+    daxa_SamplerId default_linear_sampler;
+    daxa_SamplerId shadow_sampler;
+    daxa_BufferPtr(CameraInfo) camera_buffer;
+    daxa_BufferPtr(LightInfo) light_buffer;
+};
+DAXA_DECL_BUFFER_PTR(GlobalRenderingBuffer);
 
 struct Vertex
 {

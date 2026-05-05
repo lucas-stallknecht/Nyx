@@ -3,6 +3,7 @@
 #include "window.hpp"
 #include <daxa/daxa.hpp>
 #include <daxa/utils/pipeline_manager.hpp>
+#include <daxa/utils/task_graph_types.hpp>
 
 struct GPUContext
 {
@@ -11,6 +12,7 @@ struct GPUContext
     daxa::Device device;
     daxa::Swapchain swapchain;
     daxa::PipelineManager pipeline_manager;
+    daxa::ExternalTaskImage t_swapchain_image;
 
     void init(Window const & window);
 };

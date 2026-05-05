@@ -1,9 +1,9 @@
 #include "gpu_context.hpp"
 
-GPUContext gpu = {};
-
 #include <fmt/format.h>
 #include <cassert>
+
+GPUContext gpu = {};
 
 void GPUContext::init(Window const & window)
 {
@@ -27,6 +27,11 @@ void GPUContext::init(Window const & window)
             },
         .default_language = daxa::ShaderLanguage::GLSL,
         .default_enable_debug_info = true,
+    });
+
+    t_swapchain_image = daxa::ExternalTaskImage({
+        .is_swapchain_image = true,
+        .name = "task swapchain image",
     });
 
     initialized = true;

@@ -16,6 +16,7 @@ add_executable(${PROJECT_NAME}
   src/gpu_context.cpp
   src/camera.cpp
   src/asset_manager.cpp
+  src/renderer.cpp
   src/utils/gltf.cpp
 )
 

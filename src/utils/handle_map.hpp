@@ -71,7 +71,7 @@ struct HandleMap
         }
     }
 
-    T * get(Handle handle) const
+    T * get(Handle handle)
     {
         usize idx = handle.idx;
 
@@ -89,7 +89,7 @@ struct HandleMap
         return nullptr;
     }
 
-    bool valid(Handle handle) const
+    bool valid(Handle handle)
     {
         usize idx = handle.idx;
         if (!handle.valid() || idx >= items_count)
