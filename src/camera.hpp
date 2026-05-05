@@ -12,11 +12,11 @@ struct Camera
     vec3 position = {7.5f, 1.5f, -0.25f};
     quat rotation = {0.707f, 0.0f, 0.707f, 0.0f};
 
-    mat4 get_proj(f32 aspect_ratio);
-    mat4 get_view();
-    vec3 get_forward() { return rotation * vec3(0.0f, 0.0f, -1.0f); };
-    vec3 get_up() { return rotation * vec3(0.0f, 1.0f, 0.0f); };
-    vec3 get_right() { return rotation * vec3(1.0f, 0.0f, 0.0f); };
+    mat4 get_proj(f32 aspect_ratio) const;
+    mat4 get_view() const;
+    vec3 get_forward() const { return rotation * vec3(0.0f, 0.0f, -1.0f); };
+    vec3 get_up() const { return rotation * vec3(0.0f, 1.0f, 0.0f); };
+    vec3 get_right() const { return rotation * vec3(1.0f, 0.0f, 0.0f); };
     void move_forward(f32 d);
     void move_up(f32 d);
     void move_right(f32 d);

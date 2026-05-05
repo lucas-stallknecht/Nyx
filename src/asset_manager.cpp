@@ -13,7 +13,7 @@ void AssetManager::cleanup()
 {
     for (usize i = 0; i < models.items_count; i++)
     {
-        auto & model = models.items[i];
+        Model & model = models.items[i];
         if (!model.material_buffer.is_empty())
         {
             gpu.device.destroy_buffer(model.material_buffer);
@@ -49,7 +49,7 @@ AssetManager::LoadModelResult AssetManager::load_model(std::string_view path, Ha
         return LoadModelResult::File_Not_Found;
     }
 
-    auto gltf = fastgltf::MappedGltfFile::FromPath(path);
+    fastgltf::Expected<fastgltf::MappedGltfFile> gltf = fastgltf::MappedGltfFile::FromPath(path);
     if (!bool(gltf))
     {
         fmt::println("Failed to open: {}. {}", path, fastgltf::getErrorMessage(gltf.error()));
@@ -63,7 +63,7 @@ AssetManager::LoadModelResult AssetManager::load_model(std::string_view path, Ha
     constexpr auto options = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble |
                              fastgltf::Options::LoadExternalBuffers | fastgltf::Options::GenerateMeshIndices;
     ;
-    auto asset = parser.loadGltf(gltf.get(), file_path.parent_path(), options);
+    fastgltf::Expected<fastgltf::Asset> asset = parser.loadGltf(gltf.get(), file_path.parent_path(), options);
     if (!asset)
     {
         fmt::println("Failed to load gltf: {}", fastgltf::getErrorMessage(asset.error()));

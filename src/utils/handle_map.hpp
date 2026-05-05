@@ -55,7 +55,9 @@ struct HandleMap
         usize gen = handle.gen;
 
         if (idx == 0 || idx >= items_count)
+        {
             return;
+        }
 
         T & item = items[idx];
 
@@ -69,16 +71,20 @@ struct HandleMap
         }
     }
 
-    T * get(Handle handle)
+    T * get(Handle handle) const
     {
         usize idx = handle.idx;
 
         if (idx == 0 || idx >= items_count)
+        {
             return nullptr;
+        }
 
         T & item = items[idx];
         if (item.handle == handle)
+        {
             return &item;
+        }
 
         return nullptr;
     }
@@ -87,7 +93,9 @@ struct HandleMap
     {
         usize idx = handle.idx;
         if (!handle.valid() || idx >= items_count)
+        {
             return false;
+        }
 
         return items[idx].handle == handle;
     }

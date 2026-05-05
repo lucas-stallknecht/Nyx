@@ -25,16 +25,17 @@ namespace
             std::vector<Vertex> vertices;
             std::vector<u32> indices;
 
-            for (auto & prim : mesh.primitives)
+            for (auto const & prim : mesh.primitives)
             {
-                auto const * position_attr = prim.findAttribute("POSITION");
+                fastgltf::Attribute const * position_attr = prim.findAttribute("POSITION");
                 assert(prim.type == fastgltf::PrimitiveType::Triangles && "Using a non-triangulated mesh");
-                assert(position_attr != nullptr && position_attr != prim.attributes.end() &&
-                       "Primitive must contain a position attribute");
+                assert(position_attr != prim.attributes.end() && "Primitive must contain a position attribute");
 
                 fastgltf::Accessor & position_accessor = asset.accessors[position_attr->accessorIndex];
                 if (!position_accessor.bufferViewIndex.has_value())
+                {
                     continue;
+                }
 
                 auto vertex_offset = static_cast<u32>(vertices.size());
                 vertices.resize(vertex_offset + position_accessor.count);
@@ -46,12 +47,13 @@ namespace
                         vertices[idx + vertex_offset] = {
                             .position = {pos.x(), pos.y(), pos.z()},
                             .normal = {1.0f, 0.0f, 0.0f},
+                            .tangent = {},
                             .uv = {0.0f, 0.0f},
                         };
                     });
 
-                if (auto const * texcoord_attr = prim.findAttribute("TEXCOORD_0");
-                    texcoord_attr != nullptr && texcoord_attr != prim.attributes.end())
+                if (fastgltf::Attribute const * texcoord_attr = prim.findAttribute("TEXCOORD_0");
+                    texcoord_attr != prim.attributes.end())
                 {
                     fastgltf::Accessor & texcoord_accessor = asset.accessors[texcoord_attr->accessorIndex];
                     fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec2>(
@@ -59,8 +61,8 @@ namespace
                         { vertices[idx + vertex_offset].uv = {uv.x(), uv.y()}; });
                 }
 
-                if (auto const * normal_attr = prim.findAttribute("NORMAL");
-                    normal_attr != nullptr && normal_attr != prim.attributes.end())
+                if (fastgltf::Attribute const * normal_attr = prim.findAttribute("NORMAL");
+                    normal_attr != prim.attributes.end())
                 {
                     fastgltf::Accessor & normal_accessor = asset.accessors[normal_attr->accessorIndex];
                     fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(
@@ -68,8 +70,8 @@ namespace
                         { vertices[idx + vertex_offset].normal = {normal.x(), normal.y(), normal.z()}; });
                 }
 
-                if (auto const * tangent_attr = prim.findAttribute("TANGENT");
-                    tangent_attr != nullptr && tangent_attr != prim.attributes.end())
+                if (fastgltf::Attribute const * tangent_attr = prim.findAttribute("TANGENT");
+                    tangent_attr != prim.attributes.end())
                 {
                     fastgltf::Accessor & tangent_accessor = asset.accessors[tangent_attr->accessorIndex];
                     fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec4>(
@@ -83,9 +85,11 @@ namespace
 
                 // Should not happen thanks to the gltf_option
                 if (!prim.indicesAccessor.has_value())
+                {
                     continue;
+                }
 
-                fastgltf::Accessor & index_accessor = asset.accessors[prim.indicesAccessor.value()];
+                fastgltf::Accessor const & index_accessor = asset.accessors[prim.indicesAccessor.value()];
                 auto index_offset = static_cast<u32>(indices.size());
                 indices.reserve(indices.size() + index_accessor.count);
 
@@ -168,8 +172,8 @@ namespace
             fastgltf::Image & image = asset.images[image_idx];
             std::visit(
                 fastgltf::visitor{
-                    [](auto & image_data) {},
-                    [&](fastgltf::sources::URI & uri)
+                    [](auto & /* image_data */) {},
+                    [&](fastgltf::sources::URI & /* uri */)
                     {
                         // TODO: Handle this
                     },
@@ -179,7 +183,7 @@ namespace
                         fastgltf::Buffer & buffer = asset.buffers.at(buffer_view.bufferIndex);
                         std::visit(
                             fastgltf::visitor{
-                                [](auto const & buffer) {},
+                                [](auto const & /* buffer */) {},
                                 [&](fastgltf::sources::Array & array)
                                 {
                                     auto const * bytes = reinterpret_cast<ktx_uint8_t const *>(array.bytes.data() +
@@ -263,20 +267,32 @@ namespace
         fastgltf::Image const * img = nullptr;
 
         if (texture.imageIndex.has_value())
+        {
             img = &asset.images[texture.imageIndex.value()];
+        }
         else if (texture.basisuImageIndex.has_value())
+        {
             img = &asset.images[texture.basisuImageIndex.value()];
+        }
         else if (texture.ddsImageIndex.has_value())
+        {
             img = &asset.images[texture.ddsImageIndex.value()];
+        }
         else if (texture.webpImageIndex.has_value())
+        {
             img = &asset.images[texture.webpImageIndex.value()];
+        }
 
         if (!img)
+        {
             return {};
+        }
 
         auto it = image_cache.find(img);
         if (it == image_cache.end())
+        {
             return {};
+        }
 
         return it->second;
     }
@@ -297,19 +313,19 @@ namespace
 
             if (mat.pbrData.baseColorTexture)
             {
-                auto texture = asset.textures.at(mat.pbrData.baseColorTexture->textureIndex);
+                fastgltf::Texture texture = asset.textures.at(mat.pbrData.baseColorTexture->textureIndex);
                 out_mat.base_color_texture = find_cached_image_from_texture(asset, texture, image_cache);
             }
 
             if (mat.pbrData.metallicRoughnessTexture)
             {
-                auto texture = asset.textures.at(mat.pbrData.metallicRoughnessTexture->textureIndex);
+                fastgltf::Texture texture = asset.textures.at(mat.pbrData.metallicRoughnessTexture->textureIndex);
                 out_mat.metallic_roughness_texture = find_cached_image_from_texture(asset, texture, image_cache);
             }
 
             if (mat.normalTexture)
             {
-                auto texture = asset.textures.at(mat.normalTexture->textureIndex);
+                fastgltf::Texture texture = asset.textures.at(mat.normalTexture->textureIndex);
                 out_mat.normal_texture = find_cached_image_from_texture(asset, texture, image_cache);
             }
 

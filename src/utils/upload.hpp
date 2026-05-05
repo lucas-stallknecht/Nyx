@@ -8,7 +8,7 @@
 inline void upload_buffer(daxa::BufferId buffer, void const * data, usize size)
 {
     daxa::Device device = gpu.device;
-    auto cr = device.create_command_recorder({});
+    daxa::CommandRecorder cr = device.create_command_recorder({});
 
     cr.pipeline_barrier({
         .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
@@ -60,7 +60,7 @@ struct ImageUploadMipInfo
 inline void upload_image(daxa::ImageId image, void const * data, usize size, std::span<ImageUploadMipInfo> mip_infos)
 {
     daxa::Device device = gpu.device;
-    auto cr = device.create_command_recorder({});
+    daxa::CommandRecorder cr = device.create_command_recorder({});
 
     cr.pipeline_image_barrier({
         .dst_access = daxa::AccessConsts::TRANSFER_WRITE,

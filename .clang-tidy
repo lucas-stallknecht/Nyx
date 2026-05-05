@@ -1,13 +1,29 @@
 Checks: >
--*,
-clang-analyzer-*,
-bugprone-*,
-performance-*,
-misc-*,
-modernize-use-nullptr,
-modernize-use-override,
-modernize-use-auto
--readability-magic-numbers,
--readability-identifier-length
-readability-braces-around-statements,
-readability-implicit-bool-conversion,
+    -*,
+    clang-analyzer-*,
+    bugprone-*,
+    performance-*,
+    misc-*,
+
+    modernize-use-nullptr,
+    modernize-use-override,
+    modernize-loop-convert,
+
+    readability-braces-around-statements,
+    readability-const-return-type,
+    readability-make-member-function-const
+
+    misc-const-correctness,
+    misc-missing-const-correctness
+
+    performance-unnecessary-copy-initialization,
+    performance-unnecessary-value-param,
+
+    hicpp-use-auto,
+
+    -readability-magic-numbers,
+    -readability-identifier-length,
+    -readability-implicit-bool-conversion,
+    -misc-non-private-member-variables-in-classes,
+    -bugprone-easily-swappable-parameters,
+    -misc-no-recursion

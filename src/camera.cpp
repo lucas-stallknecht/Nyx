@@ -1,13 +1,13 @@
 #include "camera.hpp"
 
-mat4 Camera::get_proj(f32 aspect_ratio)
+mat4 Camera::get_proj(f32 aspect_ratio) const
 {
     mat4 proj = glm::perspective(glm::radians(fov), aspect_ratio, near, plane);
     proj[1][1] *= -1.0f; // Flip for Vulkan clip space
     return proj;
 }
 
-mat4 Camera::get_view()
+mat4 Camera::get_view() const
 {
     glm::mat4 rot = glm::mat4_cast(glm::conjugate(rotation));
     glm::mat4 trans = glm::translate(glm::mat4(1.0f), -position);

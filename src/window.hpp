@@ -17,14 +17,14 @@ using HWND = void *;
 #include <GLFW/glfw3native.h>
 #include <glm/glm.hpp>
 
-enum class MouseState
+enum class MouseState : u8
 {
     Not_Captured,
     First_Captured,
     Fully_Captured,
 };
 
-enum class WindowInitResult
+enum class WindowInitResult : u8
 {
     Success,
     GLFW_Init_Failed,
@@ -33,9 +33,8 @@ enum class WindowInitResult
 
 struct Window
 {
-    Window(u32 width, u32 height) : width(width), height(height) {};
-
-    u32 width, height;
+    u32 width = 1600;
+    u32 height = 900;
     GLFWwindow * glfw_window_ptr = nullptr;
     bool swapchain_out_of_date = false;
     bool minimized = false;
@@ -45,9 +44,9 @@ struct Window
     vec2 mouse_delta = {};
 
     WindowInitResult init();
-    void cleanup();
-    bool should_close() { return glfwWindowShouldClose(glfw_window_ptr); }
-    void update()
+    void cleanup() const;
+    bool should_close() const { return glfwWindowShouldClose(glfw_window_ptr); }
+    void update() const
     {
         glfwPollEvents();
         glfwSwapBuffers(glfw_window_ptr);

@@ -22,16 +22,16 @@ WindowInitResult Window::init()
 
     glfwSetWindowUserPointer(glfw_window_ptr, this);
     glfwSetWindowSizeCallback(glfw_window_ptr,
-                              [](GLFWwindow * window, int width, int height)
+                              [](GLFWwindow * window, int w, int h)
                               {
                                   auto * win = static_cast<Window *>(glfwGetWindowUserPointer(window));
                                   win->swapchain_out_of_date = true;
-                                  win->width = static_cast<u32>(width);
-                                  win->height = static_cast<u32>(height);
-                                  win->minimized = (width == 0 || height == 0);
+                                  win->width = static_cast<u32>(w);
+                                  win->height = static_cast<u32>(h);
+                                  win->minimized = (w == 0 || h == 0);
                               });
     glfwSetKeyCallback(glfw_window_ptr,
-                       [](GLFWwindow * window, int key, int scancode, int action, int _)
+                       [](GLFWwindow * window, int key, int /*scancode*/, int action, int /*_*/)
                        {
                            auto * win = static_cast<Window *>(glfwGetWindowUserPointer(window));
                            if (key >= 0 && key < static_cast<int>(win->pressed_keys.size()))
@@ -46,7 +46,9 @@ WindowInitResult Window::init()
                                  auto * win = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
                                  if (win->mouse_state == MouseState::Not_Captured)
+                                 {
                                      return;
+                                 }
 
                                  vec2 new_pos = {static_cast<f32>(xpos), static_cast<f32>(ypos)};
 
@@ -60,11 +62,13 @@ WindowInitResult Window::init()
                                  win->last_mouse_position = new_pos;
                              });
     glfwSetMouseButtonCallback(glfw_window_ptr,
-                               [](GLFWwindow * window, int button, int action, int _)
+                               [](GLFWwindow * window, int button, int action, int /*_*/)
                                {
                                    auto * win = static_cast<Window *>(glfwGetWindowUserPointer(window));
                                    if (button != GLFW_MOUSE_BUTTON_RIGHT)
+                                   {
                                        return;
+                                   }
 
                                    if (action == GLFW_PRESS)
                                    {
@@ -86,7 +90,7 @@ WindowInitResult Window::init()
     return WindowInitResult::Success;
 }
 
-void Window::cleanup()
+void Window::cleanup() const
 {
     glfwDestroyWindow(glfw_window_ptr);
     glfwTerminate();

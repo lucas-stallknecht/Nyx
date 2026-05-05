@@ -11,12 +11,15 @@
 #include <fmt/ranges.h>
 #include <imgui.h>
 
-static constexpr usize SHADOW_MAP_SIZE = 2048;
-static constexpr vec3 DIR_LIGHT_POSITION = {0.0f, 20.0f, 3.0f};
+static constexpr usize SHADOW_MAP_SIZE = 4096;
+static constexpr vec3 DIR_LIGHT_POSITION = {5.0f, 20.0f, 2.0f};
 
 int main()
 {
-    auto window = Window(1920, 1080);
+    Window window = {
+        .width = 1920,
+        .height = 1080,
+    };
     WindowInitResult window_res = window.init();
     if (window_res != WindowInitResult::Success)
     {
@@ -83,7 +86,7 @@ int main()
         .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
         .name = "light buffer",
     });
-    glm::mat4 light_proj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 50.0f);
+    glm::mat4 light_proj = glm::ortho(-15.0f, 15.0f, -15.0f, 15.0f, 0.1f, 50.0f);
     glm::mat4 light_view = glm::lookAt(DIR_LIGHT_POSITION, {}, {0.0f, 1.0f, 0.0f});
     auto * buffer_ptr = gpu.device.buffer_host_address_as<LightInfo>(light_buffer).value();
     *buffer_ptr = {
@@ -169,9 +172,11 @@ int main()
                     for (auto & node : sponza->nodes)
                     {
                         if (node.mesh_idx < -1)
+                        {
                             continue;
+                        }
 
-                        auto & mesh = sponza->meshes[node.mesh_idx];
+                        Mesh & mesh = sponza->meshes[static_cast<u32>(node.mesh_idx)];
                         cr.set_index_buffer({
                             .buffer = mesh.index_buffer,
                             .index_type = daxa::IndexType::uint32,
@@ -204,7 +209,7 @@ int main()
                  shadow_map = t_shadow_depth_map.view(), cam = &camera, cam_buffer, light_buffer, sponza,
                  default_sampler, shadow_sampler](daxa::TaskInterface ti)
                 {
-                    auto size = ti.info(color_target).value().size;
+                    daxa::Extent3D size = ti.info(color_target).value().size;
                     daxa::RenderCommandRecorder cr =
                         std::move(ti.recorder)
                             .begin_renderpass({
@@ -236,9 +241,11 @@ int main()
                     for (auto & node : sponza->nodes)
                     {
                         if (node.mesh_idx < -1)
+                        {
                             continue;
+                        }
 
-                        auto & mesh = sponza->meshes[node.mesh_idx];
+                        Mesh & mesh = sponza->meshes[static_cast<u32>(node.mesh_idx)];
                         cr.set_index_buffer({
                             .buffer = mesh.index_buffer,
                             .index_type = daxa::IndexType::uint32,
@@ -275,39 +282,59 @@ int main()
     {
         window.update();
         if (window.minimized)
+        {
             continue;
+        }
         if (window.swapchain_out_of_date)
         {
             gpu.swapchain.resize();
             window.swapchain_out_of_date = false;
         }
 
-        auto reloaded_result = gpu.pipeline_manager.reload_all();
+        daxa::PipelineReloadResult reloaded_result = gpu.pipeline_manager.reload_all();
         if (auto reload_err = daxa::get_if<daxa::PipelineReloadError>(&reloaded_result))
+        {
             fmt::println("Failed to reload shaders: {}", reload_err->message);
+        }
         if (daxa::get_if<daxa::PipelineReloadSuccess>(&reloaded_result))
+        {
             fmt::println("Shaders successfuly reloaded");
+        }
 
-        auto & io = ImGui::GetIO();
+        ImGuiIO & io = ImGui::GetIO();
         f32 dt = io.DeltaTime;
 
         camera.rotate(dt * window.consume_mouse_delta());
         if (window.pressed_keys[GLFW_KEY_W])
+        {
             camera.move_forward(dt);
+        }
         if (window.pressed_keys[GLFW_KEY_S])
+        {
             camera.move_forward(-dt);
+        }
         if (window.pressed_keys[GLFW_KEY_D])
+        {
             camera.move_right(dt);
+        }
         if (window.pressed_keys[GLFW_KEY_A])
+        {
             camera.move_right(-dt);
+        }
         if (window.pressed_keys[GLFW_KEY_SPACE])
+        {
             camera.move_up(dt);
+        }
         if (window.pressed_keys[GLFW_KEY_LEFT_CONTROL])
+        {
             camera.move_up(-dt);
+        }
 
         daxa::ImageId new_image = gpu.swapchain.acquire_next_image();
         if (new_image.is_empty())
+        {
             continue;
+        }
         t_swapchain_image.set_image(new_image);
         loop_task_graph.execute({});
 

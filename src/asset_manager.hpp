@@ -19,7 +19,7 @@ struct AssetManager
 
     void cleanup();
 
-    enum class LoadModelResult
+    enum class LoadModelResult : u8
     {
         Success,
         File_Not_Found,
