@@ -16,7 +16,7 @@ static constexpr vec3 DIR_LIGHT_POSITION = {0.0f, 20.0f, 3.0f};
 
 int main()
 {
-    auto window = Window(1600, 900);
+    auto window = Window(1920, 1080);
     WindowInitResult window_res = window.init();
     if (window_res != WindowInitResult::Success)
     {
@@ -61,6 +61,7 @@ int main()
                 .raster =
                     {
                         .face_culling = daxa::FaceCullFlagBits::BACK_BIT,
+                        .depth_bias_enable = true,
                     },
                 .push_constant_size = sizeof(DrawDirectionalDepthMap),
                 .name = "shadow depth pipeline",
@@ -178,6 +179,10 @@ int main()
                         push.model_matrix = std::bit_cast<daxa_f32mat4x4>(node.local_transform);
                         push.vertex_buffer = ti.device.device_address(mesh.vertex_buffer).value();
                         cr.push_constant(push);
+                        cr.set_depth_bias({
+                            .constant_factor = -0.001f,
+                            .slope_factor = 1.75f,
+                        });
 
                         for (auto & sub : mesh.sub_meshes)
                         {
@@ -269,6 +274,14 @@ int main()
     while (!window.should_close())
     {
         window.update();
+        if (window.minimized)
+            continue;
+        if (window.swapchain_out_of_date)
+        {
+            gpu.swapchain.resize();
+            window.swapchain_out_of_date = false;
+        }
+
         auto reloaded_result = gpu.pipeline_manager.reload_all();
         if (auto reload_err = daxa::get_if<daxa::PipelineReloadError>(&reloaded_result))
             fmt::println("Failed to reload shaders: {}", reload_err->message);
@@ -298,11 +311,6 @@ int main()
         t_swapchain_image.set_image(new_image);
         loop_task_graph.execute({});
 
-        if (window.swapchain_out_of_date)
-        {
-            gpu.swapchain.resize();
-            window.swapchain_out_of_date = false;
-        }
         gpu.device.collect_garbage();
     }
     gpu.device.wait_idle();

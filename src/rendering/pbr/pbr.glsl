@@ -43,8 +43,6 @@ void main()
 layout(location = 0) in VOut f_in;
 layout(location = 0) out vec4 out_color;
 
-#define MIN_SHADOW_BIAS 0.001
-
 float calculate_shadow(vec3 normal, vec3 light_dir) {
     vec3 proj_coords = f_in.light_space_pos.xyz / f_in.light_space_pos.w;
 
@@ -52,7 +50,7 @@ float calculate_shadow(vec3 normal, vec3 light_dir) {
     float closest_depth = texture(daxa_sampler2D(push.shadow_map, push.shadow_sampler), tex_coord).r;
     float current_depth = proj_coords.z;
 
-    return current_depth - MIN_SHADOW_BIAS > closest_depth ? 1.0 : 0.0;
+    return current_depth > closest_depth ? 1.0 : 0.0;
 }
 
 void main()
@@ -76,8 +74,8 @@ void main()
     }
 
     vec3 light_dir = normalize(light_info.dir_pos);
-    float ambient = 0.15;
-    float diff = dot(light_dir, normal);
+    float ambient = 0.02;
+    float diff = abs(dot(light_dir, normal));
     float shadow = calculate_shadow(normal, light_dir);
 
     vec3 color = (ambient + (1.0 - shadow) * diff) * base_color;
