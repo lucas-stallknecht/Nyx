@@ -22,8 +22,8 @@ void Camera::move_right(f32 d) { position += get_right() * d * move_speed; }
 
 void Camera::rotate(vec2 delta)
 {
-    float yaw = -delta.x * look_sensitivity;
-    float pitch = -delta.y * look_sensitivity;
+    f32 yaw = -delta.x * look_sensitivity;
+    f32 pitch = -delta.y * look_sensitivity;
     pitch = glm::clamp(pitch, -89.0f, 89.0f);
 
     // World up

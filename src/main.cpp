@@ -85,7 +85,7 @@ int main()
         ImGuiIO & io = ImGui::GetIO();
         f32 dt = io.DeltaTime;
 
-        camera.rotate(dt * window.consume_mouse_delta());
+        camera.rotate(window.consume_mouse_delta());
         if (window.pressed_keys[GLFW_KEY_W])
         {
             camera.move_forward(dt);

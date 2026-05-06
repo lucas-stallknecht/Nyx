@@ -58,7 +58,7 @@ WindowInitResult Window::init()
                                      win->mouse_state = MouseState::Fully_Captured;
                                      return;
                                  }
-                                 win->mouse_delta = new_pos - win->last_mouse_position;
+                                 win->mouse_delta += new_pos - win->last_mouse_position;
                                  win->last_mouse_position = new_pos;
                              });
     glfwSetMouseButtonCallback(glfw_window_ptr,
