@@ -44,7 +44,25 @@ void main()
 layout(location = 0) in VOut f_in;
 layout(location = 0) out vec4 out_color;
 
-float calculate_shadow(daxa_SamplerId shadow_sampler) {
+vec3 calc_sun_contribution(vec3 sun_dir, vec3 sun_color, vec3 base_color, vec3 normal) {
+    vec3 diffuse = sun_color * max(dot(sun_dir, normal), 0.0) * base_color;
+
+    return diffuse;
+}
+
+vec3 calc_point_light_contribution(PointLight light, vec3 base_color, vec3 normal) {
+    vec3 light_dir = light.position - f_in.pos;
+    float distance = length(light_dir);
+    light_dir = normalize(light_dir);
+
+    float attenuation = 1.0 / (1.0 + light.linear * distance + (light.quadratic * distance * distance));
+
+    vec3 diffuse = light.color * max(dot(normal, light_dir), 0.0) * base_color;
+
+    return diffuse * attenuation;
+}
+
+float calc_shadow(daxa_SamplerId shadow_sampler) {
     vec3 proj_coords = f_in.light_space_pos.xyz / f_in.light_space_pos.w;
 
     vec2 tex_coord = proj_coords.xy * 0.5 + 0.5; // [-1, 1] -> [0, 1]
@@ -77,11 +95,25 @@ void main()
     }
 
     float ambient = 0.02;
-    float diff = abs(dot(light_info.sun_dir, normal));
-    float shadow = calculate_shadow(global.shadow_sampler);
+    vec3 color = ambient * base_color;
 
-    vec3 color = (ambient + (1.0 - shadow) * diff) * base_color;
-    out_color = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
+    float shadow = calc_shadow(global.shadow_sampler);
+    color += (1.0 - shadow) * calc_sun_contribution(
+                light_info.sun_dir,
+                light_info.sun_color,
+                base_color,
+                normal
+            );
+
+    for (uint i = 0; i < light_info.num_point_lights; i++) {
+        color += calc_point_light_contribution(
+                light_info.point_lights[i],
+                base_color,
+                normal
+            );
+    }
+
+    out_color = vec4(color, 1.0);
 }
 
 #endif

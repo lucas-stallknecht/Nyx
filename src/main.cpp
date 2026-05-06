@@ -43,8 +43,17 @@ int main()
     auto * light_buffer_ptr = gpu.device.buffer_host_address_as<LightInfo>(light_buffer).value();
     *light_buffer_ptr = {
         .sun_dir = std::bit_cast<daxa_f32vec3>(glm::normalize(DIR_LIGHT_POSITION)),
+        .sun_color = {1.0f, 1.0f, 1.0f},
         .sun_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view),
+        .num_point_lights = 3,
+        .point_lights = {},
     };
+    light_buffer_ptr->point_lights[0].position = {3.5f, 1.4f, 3.9f};
+    light_buffer_ptr->point_lights[0].color = {1.0f, 0.0f, 0.0f};
+    light_buffer_ptr->point_lights[1].position = {0.5f, 1.7f, 3.0f};
+    light_buffer_ptr->point_lights[1].color = {1.0f, 1.0f, 1.0f};
+    light_buffer_ptr->point_lights[2].position = {-2.5f, 0.8f, 2.7f};
+    light_buffer_ptr->point_lights[2].color = {0.0f, 0.0f, 1.0f};
 
     Handle sponza_handle = {};
     asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb", sponza_handle);

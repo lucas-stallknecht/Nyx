@@ -26,13 +26,13 @@ struct Renderer
     daxa::ExternalTaskImage t_depth_image;
     daxa::ExternalTaskImage t_shadow_depth_image;
 
-    void init(Window const & window, RenderDependencies dependencies);
+    void init(Window const & window, RenderDependencies const & dependencies);
     void cleanup();
     void resize_resources(Window const & window);
     void render();
 
   protected:
     void init_pipelines();
-    void init_resources(Window const & window, RenderDependencies dependencies);
-    void init_task_graphs(RenderDependencies dependencies);
+    void init_resources(Window const & window, RenderDependencies const & dependencies);
+    void init_task_graphs(RenderDependencies const & dependencies);
 };

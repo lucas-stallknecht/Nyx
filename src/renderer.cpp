@@ -5,7 +5,7 @@
 
 #include <utility>
 
-void Renderer::init(Window const & window, RenderDependencies dependencies)
+void Renderer::init(Window const & window, RenderDependencies const & dependencies)
 {
     init_pipelines();
     init_resources(window, dependencies);
@@ -50,12 +50,12 @@ void Renderer::init_pipelines()
                     },
                 .raster = {.face_culling = daxa::FaceCullFlagBits::FRONT_BIT},
                 .push_constant_size = sizeof(DrawForwardPC),
-                .name = "pbr pipeline",
+                .name = "forward rendering pipeline",
             })
             .value();
 }
 
-void Renderer::init_resources(Window const & window, RenderDependencies dependencies)
+void Renderer::init_resources(Window const & window, RenderDependencies const & dependencies)
 {
     default_linear_sampler = gpu.device.create_sampler({
         .magnification_filter = daxa::Filter::LINEAR,
@@ -109,7 +109,7 @@ void Renderer::init_resources(Window const & window, RenderDependencies dependen
     };
 }
 
-void Renderer::init_task_graphs(RenderDependencies dependencies)
+void Renderer::init_task_graphs(RenderDependencies const & dependencies)
 {
     loop_task_graph = daxa::TaskGraph({
         .device = gpu.device,
