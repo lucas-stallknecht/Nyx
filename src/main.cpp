@@ -55,9 +55,8 @@ int main()
     light_buffer_ptr->point_lights[2].position = {-2.5f, 0.8f, 2.7f};
     light_buffer_ptr->point_lights[2].color = {0.0f, 0.0f, 1.0f};
 
-    Handle sponza_handle = {};
-    asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb", sponza_handle);
-    Model * sponza = asset_manager.models.get(sponza_handle);
+    auto sponza_handle = asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb");
+    Model * sponza = asset_manager.models.get(sponza_handle.value());
 
     Renderer renderer = {};
     renderer.init(window, {

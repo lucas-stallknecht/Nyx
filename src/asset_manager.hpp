@@ -3,11 +3,12 @@
 #include "model.hpp"
 #include "utils/handle_map.hpp"
 #include <daxa/daxa.hpp>
+#include <expected>
 
-struct Texture
+enum class LoadModelError : u8
 {
-    Handle handle;
-    daxa::ImageId image;
+    File_Not_Found,
+    Failed_To_Load,
 };
 
 struct AssetManager
@@ -19,13 +20,7 @@ struct AssetManager
 
     void cleanup();
 
-    enum class LoadModelResult : u8
-    {
-        Success,
-        File_Not_Found,
-        Failed_To_Load,
-    };
-    LoadModelResult load_model(std::string_view path, Handle & out);
+    [[nodiscard]] std::expected<Handle, LoadModelError> load_model(std::string_view path);
 };
 
 extern AssetManager asset_manager;

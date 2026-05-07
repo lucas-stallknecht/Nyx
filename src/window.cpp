@@ -90,10 +90,11 @@ WindowInitResult Window::init()
     return WindowInitResult::Success;
 }
 
-void Window::cleanup() const
+void Window::cleanup()
 {
     glfwDestroyWindow(glfw_window_ptr);
     glfwTerminate();
+    glfw_window_ptr = nullptr;
 }
 
 daxa::NativeWindowInfo Window::get_native_window_info() const

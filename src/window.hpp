@@ -44,7 +44,7 @@ struct Window
     vec2 mouse_delta = {};
 
     WindowInitResult init();
-    void cleanup() const;
+    void cleanup();
     bool should_close() const { return glfwWindowShouldClose(glfw_window_ptr); }
     void update() const
     {

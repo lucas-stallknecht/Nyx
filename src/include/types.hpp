@@ -24,6 +24,6 @@ struct Handle
     usize idx = 0;
     usize gen = 0;
 
-    bool valid() { return idx != 0 && gen != 0; };
+    bool valid() const { return idx != 0 && gen != 0; };
     bool operator==(Handle const & other) const = default;
 };

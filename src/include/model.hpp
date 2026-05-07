@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.hpp"
+#include "shared.inl"
 #include <daxa/daxa.hpp>
 
 struct Node
@@ -17,6 +18,13 @@ struct SubMesh
     u32 material_idx = 0;
 };
 
+struct MeshData
+{
+    std::vector<Vertex> vertices = {};
+    std::vector<u32> indices = {};
+    std::vector<SubMesh> sub_meshes = {};
+};
+
 struct Mesh
 {
     daxa::BufferId vertex_buffer;
@@ -24,14 +32,37 @@ struct Mesh
     std::vector<SubMesh> sub_meshes = {};
 };
 
+struct MaterialData
+{
+    vec3 base_color = vec3(1.0f);
+    f32 metallic = 0.0f;
+    f32 roughness = 1.0f;
+    u32 base_color_texture = 0;
+    u32 metallic_roughness_texture = 0;
+    u32 normal_texture = 0;
+};
+
 struct Material
 {
-    daxa_f32vec3 base_color = {1.0f, 1.0f, 1.0f};
-    daxa_f32 metallic = 0.0f;
-    daxa_f32 roughness = 1.0f;
+    vec3 base_color = vec3(1.0f);
+    f32 metallic = 0.0f;
+    f32 roughness = 1.0f;
     daxa::ImageId base_color_texture;
     daxa::ImageId metallic_roughness_texture;
     daxa::ImageId normal_texture;
+};
+
+struct ImageMipInfo
+{
+    usize offset = 0;
+    daxa::Extent3D extent = {};
+};
+
+struct ImageData
+{
+    std::vector<std::byte> data = {};
+    std::vector<ImageMipInfo> mip_infos = {};
+    daxa::ImageInfo info = {};
 };
 
 struct Model

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "model.hpp"
 #include "types.hpp"
 #include "../gpu_context.hpp"
 #include <daxa/daxa.hpp>
@@ -51,13 +52,7 @@ inline daxa::BufferId create_and_upload_buffer(void const * data, daxa::BufferIn
     return buffer;
 }
 
-struct ImageUploadMipInfo
-{
-    usize offset;
-    daxa::Extent3D extent;
-};
-
-inline void upload_image(daxa::ImageId image, void const * data, usize size, std::span<ImageUploadMipInfo> mip_infos)
+inline void upload_image(daxa::ImageId image, void const * data, usize size, std::span<ImageMipInfo> mip_infos)
 {
     daxa::Device device = gpu.device;
     daxa::CommandRecorder cr = device.create_command_recorder({});
@@ -103,7 +98,7 @@ inline void upload_image(daxa::ImageId image, void const * data, usize size, std
     device.collect_garbage();
 }
 
-inline daxa::ImageId create_and_upload_image(void const * data, usize size, std::span<ImageUploadMipInfo> mip_infos,
+inline daxa::ImageId create_and_upload_image(void const * data, usize size, std::span<ImageMipInfo> mip_infos,
                                              daxa::ImageInfo const & image_info)
 {
     daxa::ImageId image = gpu.device.create_image(image_info);
