@@ -212,8 +212,21 @@ void Renderer::init_task_graphs(RenderDependencies const & dependencies)
                     DrawForwardPC push = {};
                     push.shadow_depth_image = ti.view(t_shadow_depth_image.view());
                     push.global_buffer = ti.device.device_address(global_buffer).value();
+                    // TODO: create render calls outside the Renderer
+                    std::vector<mat4> transforms = {};
+                    transforms.reserve(model->nodes.size());
                     for (auto & node : model->nodes)
                     {
+                        if (node.parent_idx < 0)
+                        {
+                            transforms.push_back(node.local_transform);
+                        }
+                        else
+                        {
+                            transforms.push_back(transforms[static_cast<usize>(node.parent_idx)] *
+                                                 node.local_transform);
+                        }
+
                         if (node.mesh_idx < 0)
                         {
                             continue;
@@ -225,7 +238,7 @@ void Renderer::init_task_graphs(RenderDependencies const & dependencies)
                             .index_type = daxa::IndexType::uint32,
                         });
 
-                        push.model_matrix = std::bit_cast<daxa_f32mat4x4>(node.local_transform);
+                        push.model_matrix = std::bit_cast<daxa_f32mat4x4>(transforms[transforms.size() - 1]);
                         push.vertex_buffer = ti.device.device_address(mesh.vertex_buffer).value();
                         push.material_buffer = ti.device.device_address(model->material_buffer).value();
 

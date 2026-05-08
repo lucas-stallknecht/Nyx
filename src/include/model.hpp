@@ -37,9 +37,9 @@ struct MaterialData
     vec3 base_color = vec3(1.0f);
     f32 metallic = 0.0f;
     f32 roughness = 1.0f;
-    u32 base_color_texture = 0;
-    u32 metallic_roughness_texture = 0;
-    u32 normal_texture = 0;
+    std::optional<u32> base_color_texture = {};
+    std::optional<u32> metallic_roughness_texture = {};
+    std::optional<u32> normal_texture = {};
 };
 
 struct Material

@@ -29,8 +29,9 @@ namespace
         .light_info =
             {
                 .dir_light_direction = {0.25f, 1.0f, 0.1f},
+                .dir_light_intensity = 5.0f,
                 .dir_light_color = {1.0f, 1.0f, 1.0f},
-                .num_point_lights = 3,
+                .num_point_lights = 1,
             },
     };
 
@@ -42,8 +43,9 @@ namespace
         ImGui::Begin("Lighting");
         ImGui::SeparatorText("Directional Light");
 
+        ImGui::DragFloat("Intensity", &app_state.light_info.dir_light_intensity, 0.01f, 0.0f, 10.0f);
         ImGui::DragFloat3("Direction", &app_state.light_info.dir_light_direction.x, 0.01f);
-        ImGui::ColorEdit3("Sun Color", &app_state.light_info.dir_light_color.x);
+        ImGui::ColorEdit3("Color", &app_state.light_info.dir_light_color.x);
 
         ImGui::Spacing();
 
@@ -127,10 +129,11 @@ namespace
     void update_camera_buufer(daxa::BufferId buffer, u32 width, u32 height)
     {
         auto aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
-        auto * cam_buffer_ptr = gpu.device.buffer_host_address_as<CameraInfo>(buffer).value();
+        auto * cam_buffer_ptr = gpu.device.buffer_host_address_as<GPUCamera>(buffer).value();
         *cam_buffer_ptr = {
             .proj = std::bit_cast<daxa_f32mat4x4>(app_state.camera.get_proj(aspect_ratio)),
             .view = std::bit_cast<daxa_f32mat4x4>(app_state.camera.get_view()),
+            .position = std::bit_cast<daxa_f32vec3>(app_state.camera.position),
         };
     }
 
@@ -147,6 +150,7 @@ namespace
         auto * light_buffer_ptr = gpu.device.buffer_host_address_as<LightInfo>(buffer).value();
         *light_buffer_ptr = {
             .dir_light_direction = std::bit_cast<daxa_f32vec3>(glm::normalize(light_dir)),
+            .dir_light_intensity = app_state.light_info.dir_light_intensity,
             .dir_light_color = app_state.light_info.dir_light_color,
             .dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view),
             .num_point_lights = app_state.light_info.num_point_lights,
@@ -176,7 +180,7 @@ int main()
     gpu.init(window);
 
     daxa::BufferId cam_buffer = gpu.device.create_buffer({
-        .size = sizeof(CameraInfo),
+        .size = sizeof(GPUCamera),
         .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
         .name = "camera buffer",
     });

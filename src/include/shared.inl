@@ -4,12 +4,13 @@
 
 #define MAX_POINT_LIGHTS 6
 
-struct CameraInfo
+struct GPUCamera
 {
     daxa_f32mat4x4 proj;
     daxa_f32mat4x4 view;
+    daxa_f32vec3 position;
 };
-DAXA_DECL_BUFFER_PTR(CameraInfo);
+DAXA_DECL_BUFFER_PTR(GPUCamera);
 
 struct PointLight
 {
@@ -26,6 +27,7 @@ struct PointLight
 struct LightInfo
 {
     daxa_f32vec3 dir_light_direction;
+    daxa_f32 dir_light_intensity;
     daxa_f32vec3 dir_light_color;
     daxa_f32mat4x4 dir_light_matrix;
     daxa_u32 num_point_lights;
@@ -37,7 +39,7 @@ struct GlobalRenderingBuffer
 {
     daxa_SamplerId default_linear_sampler;
     daxa_SamplerId shadow_sampler;
-    daxa_BufferPtr(CameraInfo) camera_buffer;
+    daxa_BufferPtr(GPUCamera) camera_buffer;
     daxa_BufferPtr(LightInfo) light_buffer;
 };
 DAXA_DECL_BUFFER_PTR(GlobalRenderingBuffer);

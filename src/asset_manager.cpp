@@ -74,23 +74,34 @@ std::expected<Handle, LoadModelError> AssetManager::load_model(std::string_view 
 
     utils::gltf::BuildImagesResult image_result = utils::gltf::build_images(asset.get());
     model.images.reserve(image_result.images.size());
-    for (auto & img : image_result.images)
+    for (auto & img_data : image_result.images)
     {
-        model.images.emplace_back(create_and_upload_image(img.data.data(), img.data.size(), img.mip_infos, img.info));
+        model.images.emplace_back(
+            create_and_upload_image(img_data.data.data(), img_data.data.size(), img_data.mip_infos, img_data.info));
     }
 
     std::vector<MaterialData> materials = utils::gltf::build_materials(asset.get(), image_result.image_cache);
     model.materials.reserve(materials.size());
-    for (auto const & mat : materials)
+    for (auto const & mat_data : materials)
     {
-        model.materials.emplace_back(Material{
-            .base_color = mat.base_color,
-            .metallic = mat.metallic,
-            .roughness = mat.roughness,
-            .base_color_texture = model.images[mat.base_color_texture],
-            .metallic_roughness_texture = model.images[mat.metallic_roughness_texture],
-            .normal_texture = model.images[mat.normal_texture],
-        });
+        Material cpu_mat = {
+            .base_color = mat_data.base_color,
+            .metallic = mat_data.metallic,
+            .roughness = mat_data.roughness,
+        };
+        if (mat_data.base_color_texture)
+        {
+            cpu_mat.base_color_texture = model.images[mat_data.base_color_texture.value()];
+        }
+        if (mat_data.normal_texture)
+        {
+            cpu_mat.normal_texture = model.images[mat_data.normal_texture.value()];
+        }
+        if (mat_data.metallic_roughness_texture)
+        {
+            cpu_mat.metallic_roughness_texture = model.images[mat_data.metallic_roughness_texture.value()];
+        }
+        model.materials.push_back(cpu_mat);
     }
     {
         std::vector<GPUMaterial> gpu_materials;
@@ -98,14 +109,24 @@ std::expected<Handle, LoadModelError> AssetManager::load_model(std::string_view 
 
         for (auto const & mat : model.materials)
         {
-            gpu_materials.emplace_back(GPUMaterial{
+            GPUMaterial gpu_mat = {
                 .base_color = std::bit_cast<daxa_f32vec3>(mat.base_color),
                 .metallic = mat.metallic,
                 .roughness = mat.roughness,
-                .base_color_texture = mat.base_color_texture.default_view(),
-                .metallic_roughness_texture = mat.metallic_roughness_texture.default_view(),
-                .normal_texture = mat.normal_texture.default_view(),
-            });
+            };
+            if (!mat.base_color_texture.is_empty())
+            {
+                gpu_mat.base_color_texture = mat.base_color_texture.default_view();
+            }
+            if (!mat.normal_texture.is_empty())
+            {
+                gpu_mat.normal_texture = mat.normal_texture.default_view();
+            }
+            if (!mat.metallic_roughness_texture.is_empty())
+            {
+                gpu_mat.metallic_roughness_texture = mat.metallic_roughness_texture.default_view();
+            }
+            gpu_materials.push_back(gpu_mat);
         }
         model.material_buffer =
             create_and_upload_buffer(gpu_materials.data(), {
@@ -116,20 +137,20 @@ std::expected<Handle, LoadModelError> AssetManager::load_model(std::string_view 
 
     std::vector<MeshData> meshes = utils::gltf::build_meshes(asset.get());
     model.meshes.reserve(meshes.size());
-    for (auto & mesh : meshes)
+    for (auto & mesh_data : meshes)
     {
         model.meshes.push_back({
-            .vertex_buffer = create_and_upload_buffer(mesh.vertices.data(),
+            .vertex_buffer = create_and_upload_buffer(mesh_data.vertices.data(),
                                                       {
-                                                          .size = mesh.vertices.size() * sizeof(Vertex),
+                                                          .size = mesh_data.vertices.size() * sizeof(Vertex),
                                                           .name = "vertex buffer",
                                                       }),
-            .index_buffer = create_and_upload_buffer(mesh.indices.data(),
+            .index_buffer = create_and_upload_buffer(mesh_data.indices.data(),
                                                      {
-                                                         .size = mesh.indices.size() * sizeof(u32),
+                                                         .size = mesh_data.indices.size() * sizeof(u32),
                                                          .name = "index buffer",
                                                      }),
-            .sub_meshes = std::move(mesh.sub_meshes),
+            .sub_meshes = std::move(mesh_data.sub_meshes),
         });
     }
 
