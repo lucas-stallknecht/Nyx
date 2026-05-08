@@ -33,7 +33,7 @@ target_precompile_headers(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
-  PRIVATE daxa::daxa glfw glm::glm fmt::fmt fastgltf::fastgltf KTX::ktx
+  PRIVATE daxa::daxa glfw glm::glm fmt::fmt fastgltf::fastgltf KTX::ktx imgui::imgui
 )
 
 add_compile_definitions(ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets/")

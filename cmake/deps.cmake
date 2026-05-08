@@ -1,5 +1,19 @@
 include(FetchContent)
 
+if (NOT TARGET glfw)
+  option(GLFW_BUILD_TESTS "" OFF)
+  option(GLFW_BUILD_DOCS "" OFF)
+  option(GLFW_INSTALL "" OFF)
+  option(GLFW_BUILD_EXAMPLES "" OFF)
+  FetchContent_Declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw
+        GIT_TAG        3.4
+        EXCLUDE_FROM_ALL
+    )
+  FetchContent_MakeAvailable(glfw)
+endif()
+
 FetchContent_Declare(
     daxa
     GIT_REPOSITORY https://github.com/Ipotrick/Daxa
@@ -16,40 +30,6 @@ if (NOT TARGET glm::glm)
         EXCLUDE_FROM_ALL
     )
   FetchContent_MakeAvailable(glm)
-endif()
-
-if (NOT TARGET glfw)
-  option(GLFW_BUILD_TESTS "" OFF)
-  option(GLFW_BUILD_DOCS "" OFF)
-  option(GLFW_INSTALL "" OFF)
-  option(GLFW_BUILD_EXAMPLES "" OFF)
-  FetchContent_Declare(
-        glfw
-        GIT_REPOSITORY https://github.com/glfw/glfw
-        GIT_TAG        3.4
-        EXCLUDE_FROM_ALL
-    )
-  FetchContent_MakeAvailable(glfw)
-endif()
-
-if (NOT TARGET fmt::fmt)
-  FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY https://github.com/fmtlib/fmt
-        GIT_TAG        12.1.0
-        EXCLUDE_FROM_ALL
-    )
-  FetchContent_MakeAvailable(fmt)
-endif()
-
-if (NOT TARGET imgui::imgui)
-  FetchContent_Declare(
-        imgui
-        GIT_REPOSITORY https://github.com/ocornut/imgui
-        GIT_TAG        master
-        EXCLUDE_FROM_ALL
-    )
-  FetchContent_MakeAvailable(imgui)
 endif()
 
 if (NOT TARGET fastgltf::fastgltf)

@@ -36,7 +36,7 @@ void main()
     vec3 tangent = normalize(model * vert.tangent.xyz);
     vec3 bitangent = normalize(model * cross(v_out.norm, tangent) * vert.tangent.w);
     v_out.tbn = mat3(tangent, bitangent, v_out.norm);
-    v_out.light_space_pos = light_info.sun_matrix * vec4(v_out.pos, 1.0);
+    v_out.light_space_pos = light_info.dir_light_matrix * vec4(v_out.pos, 1.0);
 }
 
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
@@ -44,13 +44,13 @@ void main()
 layout(location = 0) in VOut f_in;
 layout(location = 0) out vec4 out_color;
 
-vec3 calc_sun_contribution(vec3 sun_dir, vec3 sun_color, vec3 base_color, vec3 normal) {
-    vec3 diffuse = sun_color * max(dot(sun_dir, normal), 0.0) * base_color;
+vec3 calc_directional_lighting(vec3 light_dir, vec3 light_color, vec3 base_color, vec3 normal) {
+    vec3 diffuse = light_color * max(dot(light_dir, normal), 0.0) * base_color;
 
     return diffuse;
 }
 
-vec3 calc_point_light_contribution(PointLight light, vec3 base_color, vec3 normal) {
+vec3 calc_point_lighting(PointLight light, vec3 base_color, vec3 normal) {
     vec3 light_dir = light.position - f_in.pos;
     float distance = length(light_dir);
     light_dir = normalize(light_dir);
@@ -98,15 +98,15 @@ void main()
     vec3 color = ambient * base_color;
 
     float shadow = calc_shadow(global.shadow_sampler);
-    color += (1.0 - shadow) * calc_sun_contribution(
-                light_info.sun_dir,
-                light_info.sun_color,
+    color += (1.0 - shadow) * calc_directional_lighting(
+                light_info.dir_light_direction,
+                light_info.dir_light_color,
                 base_color,
                 normal
             );
 
     for (uint i = 0; i < light_info.num_point_lights; i++) {
-        color += calc_point_light_contribution(
+        color += calc_point_lighting(
                 light_info.point_lights[i],
                 base_color,
                 normal

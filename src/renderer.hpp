@@ -17,6 +17,7 @@ struct RenderDependencies
 
 struct Renderer
 {
+    daxa::ImGuiRenderer imgui_renderer;
     std::shared_ptr<daxa::RasterPipeline> forward_pipeline;
     std::shared_ptr<daxa::RasterPipeline> shadow_mapping_pipeline;
     daxa::SamplerId default_linear_sampler;

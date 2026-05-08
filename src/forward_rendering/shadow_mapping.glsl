@@ -13,7 +13,7 @@ void main()
     Vertex vert = deref_i(push.vertex_buffer, gl_VertexIndex);
     GlobalRenderingBuffer global = deref(push.global_buffer);
     LightInfo light_info = deref(global.light_buffer);
-    gl_Position = light_info.sun_matrix * push.model_matrix * vec4(vert.position, 1.0);
+    gl_Position = light_info.dir_light_matrix * push.model_matrix * vec4(vert.position, 1.0);
 }
 
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT

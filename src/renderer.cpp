@@ -1,12 +1,17 @@
 #include "renderer.hpp"
+
 #include "forward_rendering/forward_rendering.inl"
 #include "forward_rendering/shadow_mapping.inl"
 #include "gpu_context.hpp"
-
+#include <imgui.h>
 #include <utility>
 
 void Renderer::init(Window const & window, RenderDependencies const & dependencies)
 {
+    imgui_renderer = daxa::ImGuiRenderer({
+        .device = gpu.device,
+        .format = gpu.swapchain.get_format(),
+    });
     init_pipelines();
     init_resources(window, dependencies);
     init_task_graphs(dependencies);
@@ -237,6 +242,21 @@ void Renderer::init_task_graphs(RenderDependencies const & dependencies)
 
                     ti.recorder = std::move(cr).end_renderpass();
                 }));
+    loop_task_graph.add_task(daxa::InlineTask::Raster("Draw GUI")
+                                 .color_attachment.writes(dependencies.color_target)
+                                 .executes(
+                                     [=, color_target = dependencies.color_target.view(), this](daxa::TaskInterface ti)
+                                     {
+                                         ImGui::Render();
+                                         daxa::Extent3D size = ti.info(color_target).value().size;
+                                         imgui_renderer.record_commands(daxa::ImGuiRecordCommandsInfo{
+                                             .draw_data = ImGui::GetDrawData(),
+                                             .recorder = ti.recorder,
+                                             .target_image = ti.id(color_target),
+                                             .size_x = size.x,
+                                             .size_y = size.y,
+                                         });
+                                     }));
 
     loop_task_graph.submit({});
     loop_task_graph.present({});
