@@ -1,6 +1,6 @@
 #include "gltf.hpp"
 #include "ktx.hpp"
-#include "shared.inl"
+#include "gpu_scene.inl"
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 #include <fastgltf/tools.hpp>

@@ -17,6 +17,7 @@ add_executable(${PROJECT_NAME}
   src/camera.cpp
   src/asset_manager.cpp
   src/renderer.cpp
+  src/scene.cpp
   src/utils/gltf.cpp
   src/utils/ktx.cpp
 )

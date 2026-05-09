@@ -19,18 +19,3 @@ using vec3 = glm::vec3;
 using vec4 = glm::vec4;
 using quat = glm::quat;
 using mat4 = glm::mat4;
-
-struct Handle
-{
-    usize idx = 0;
-    usize gen = 0;
-
-    bool valid() const { return idx != 0 && gen != 0; };
-    bool operator==(Handle const & other) const = default;
-};
-
-struct Texture
-{
-    Handle handle;
-    daxa::ImageId image;
-};

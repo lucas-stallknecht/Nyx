@@ -1,11 +1,11 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include "shared.inl"
 #include "asset_manager.hpp"
+#include "scene.hpp"
 #include "window.hpp"
 #include "camera.hpp"
 #include "renderer.hpp"
 #include "gpu_context.hpp"
-#include <fmt/format.h>
+#include <fmt/core.h>
 #include <fmt/ranges.h>
 #include <daxa/utils/task_graph.hpp>
 #include <daxa/utils/imgui.hpp>
@@ -17,7 +17,7 @@ namespace
     struct AppState
     {
         Camera camera = {};
-        LightInfo light_info;
+        GPULightInfo light_info;
         float light_distance = 20.0f;
 
         float shadow_range = 15.0f;
@@ -126,40 +126,26 @@ namespace
         }
     }
 
-    void update_camera_buufer(daxa::BufferId buffer, u32 width, u32 height)
+    FrameUniforms build_frame_uniforms(Window const & window)
     {
-        auto aspect_ratio = static_cast<f32>(width) / static_cast<f32>(height);
-        auto * cam_buffer_ptr = gpu.device.buffer_host_address_as<GPUCamera>(buffer).value();
-        *cam_buffer_ptr = {
-            .proj = std::bit_cast<daxa_f32mat4x4>(app_state.camera.get_proj(aspect_ratio)),
+        f32 const aspect = static_cast<f32>(window.width) / static_cast<f32>(window.height);
+        vec3 const light_dir =
+            glm::normalize(vec3(app_state.light_info.dir_light_direction.x, app_state.light_info.dir_light_direction.y,
+                                app_state.light_info.dir_light_direction.z));
+        mat4 const light_proj = glm::ortho(-app_state.shadow_range, app_state.shadow_range, -app_state.shadow_range,
+                                           app_state.shadow_range, app_state.shadow_near, app_state.shadow_far);
+        mat4 const light_view = glm::lookAt(app_state.light_distance * light_dir, {}, {0.0f, 1.0f, 0.0f});
+
+        FrameUniforms frame;
+        frame.camera = {
+            .proj = std::bit_cast<daxa_f32mat4x4>(app_state.camera.get_proj(aspect)),
             .view = std::bit_cast<daxa_f32mat4x4>(app_state.camera.get_view()),
             .position = std::bit_cast<daxa_f32vec3>(app_state.camera.position),
         };
-    }
-
-    void update_light_buffer(daxa::BufferId buffer)
-    {
-        vec3 light_dir = {
-            app_state.light_info.dir_light_direction.x,
-            app_state.light_info.dir_light_direction.y,
-            app_state.light_info.dir_light_direction.z,
-        };
-        mat4 light_proj = glm::ortho(-app_state.shadow_range, app_state.shadow_range, -app_state.shadow_range,
-                                     app_state.shadow_range, app_state.shadow_near, app_state.shadow_far);
-        mat4 light_view = glm::lookAt(app_state.light_distance * light_dir, {}, {0.0f, 1.0f, 0.0f});
-        auto * light_buffer_ptr = gpu.device.buffer_host_address_as<LightInfo>(buffer).value();
-        *light_buffer_ptr = {
-            .dir_light_direction = std::bit_cast<daxa_f32vec3>(glm::normalize(light_dir)),
-            .dir_light_intensity = app_state.light_info.dir_light_intensity,
-            .dir_light_color = app_state.light_info.dir_light_color,
-            .dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view),
-            .num_point_lights = app_state.light_info.num_point_lights,
-        };
-        for (u32 i = 0; i < app_state.light_info.num_point_lights; ++i)
-        {
-            PointLight & light = app_state.light_info.point_lights[i];
-            light_buffer_ptr->point_lights[i] = light;
-        }
+        frame.lights = app_state.light_info;
+        frame.lights.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
+        frame.lights.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
+        return frame;
     }
 
 } // namespace
@@ -179,34 +165,16 @@ int main()
     }
     gpu.init(window);
 
-    daxa::BufferId cam_buffer = gpu.device.create_buffer({
-        .size = sizeof(GPUCamera),
-        .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
-        .name = "camera buffer",
-    });
-    daxa::BufferId light_buffer = gpu.device.create_buffer({
-        .size = sizeof(LightInfo),
-        .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
-        .name = "light buffer",
-    });
-
-    auto env_map_handle = asset_manager.load_texture(std::string(ASSETS_DIR) + "textures/bunker.ktx");
-    Texture * env_map = asset_manager.textures.get(env_map_handle.value());
-
-    auto model_handle = asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb");
-    Model * model = asset_manager.models.get(model_handle.value());
+    // daxa::ImageId env_map = asset_manager.load_texture(std::string(ASSETS_DIR) + "textures/bunker.ktx").value();
+    Model * model = asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb").value();
 
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForVulkan(window.glfw_window_ptr, true);
 
+    Scene scene = {};
+
     Renderer renderer = {};
-    renderer.init(window, {
-                              .color_target = gpu.t_swapchain_image,
-                              .camera_buffer = cam_buffer,
-                              .light_buffer = light_buffer,
-                              .env_map = env_map->image,
-                              .model = model,
-                          });
+    renderer.init(window);
 
     while (!window.should_close())
     {
@@ -218,6 +186,7 @@ int main()
         if (window.swapchain_out_of_date)
         {
             gpu.swapchain.resize();
+            renderer.resize_resources(window);
             window.swapchain_out_of_date = false;
         }
 
@@ -235,16 +204,11 @@ int main()
         f32 dt = io.DeltaTime;
         handle_inputs(window, dt);
         update_ui();
-        update_light_buffer(light_buffer);
-        update_camera_buufer(cam_buffer, window.width, window.height);
 
-        daxa::ImageId new_image = gpu.swapchain.acquire_next_image();
-        if (new_image.is_empty())
-        {
-            continue;
-        }
-        gpu.t_swapchain_image.set_image(new_image);
-        renderer.render();
+        scene.clear();
+        scene.add_model(*model);
+
+        renderer.render(build_frame_uniforms(window), scene);
 
         gpu.device.collect_garbage();
     }
@@ -254,8 +218,6 @@ int main()
     renderer.cleanup();
     asset_manager.cleanup();
     window.cleanup();
-    gpu.device.destroy_buffer(cam_buffer);
-    gpu.device.destroy_buffer(light_buffer);
 
     return 0;
 }

@@ -2,10 +2,10 @@
 
 #extension GL_EXT_debug_printf : enable
 
-#include "forward_rendering.inl"
+#include "forward.inl"
 #include "brdf.glsl"
 
-DAXA_DECL_PUSH_CONSTANT(DrawForwardPC, push)
+DAXA_DECL_PUSH_CONSTANT(ForwardPassPC, push)
 
 struct VOut {
     vec3 pos;
@@ -22,9 +22,9 @@ layout(location = 0) out VOut v_out;
 void main()
 {
     Vertex vert = deref_i(push.vertex_buffer, gl_VertexIndex);
-    GlobalRenderingBuffer global = deref(push.global_buffer);
+    GPUGlobals global = deref(push.global_buffer);
     GPUCamera cam = deref(global.camera_buffer);
-    LightInfo light_info = deref(global.light_buffer);
+    GPULightInfo light_info = deref(global.light_buffer);
 
     vec4 world_pos = push.model_matrix * vec4(vert.position, 1.0);
     gl_Position = cam.proj * cam.view * world_pos;
@@ -113,10 +113,10 @@ float calc_shadow(daxa_SamplerId shadow_sampler) {
 
 void main()
 {
-    GlobalRenderingBuffer global = deref(push.global_buffer);
+    GPUGlobals global = deref(push.global_buffer);
     GPUMaterial mat = deref_i(push.material_buffer, push.material_idx);
     GPUCamera cam = deref(global.camera_buffer);
-    LightInfo light_info = deref(global.light_buffer);
+    GPULightInfo light_info = deref(global.light_buffer);
 
     Surface surface;
     surface.albedo = mat.base_color;

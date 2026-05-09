@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types.hpp"
-#include "shared.inl"
+#include "gpu_scene.inl"
 #include <daxa/daxa.hpp>
 
 struct Node
@@ -67,7 +67,6 @@ struct ImageData
 
 struct Model
 {
-    Handle handle = {};
     std::vector<Node> nodes = {};
     std::vector<Mesh> meshes = {};
     daxa::BufferId material_buffer;

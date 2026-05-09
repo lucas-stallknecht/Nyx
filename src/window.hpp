@@ -2,9 +2,9 @@
 
 #include "types.hpp"
 #include <daxa/daxa.hpp>
+#include <glm/glm.hpp>
 
 #include <GLFW/glfw3.h>
-
 #if defined(_WIN32)
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_NATIVE_INCLUDE_NONE
@@ -13,9 +13,7 @@ using HWND = void *;
 #define GLFW_EXPOSE_NATIVE_X11
 #define GLFW_EXPOSE_NATIVE_WAYLAND
 #endif
-
 #include <GLFW/glfw3native.h>
-#include <glm/glm.hpp>
 
 enum class MouseState : u8
 {
