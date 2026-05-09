@@ -2,6 +2,7 @@
 
 #include "rendering/shadow_mapping.inl"
 #include "rendering/forward.inl"
+#include "rendering/draw_swapchain.inl"
 #include "gpu_context.hpp"
 #include "gpu_globals.inl"
 #include <imgui.h>
@@ -17,6 +18,7 @@ void Renderer::init(Window const & window)
 
     shadow_pipeline = gpu.pipeline_manager.add_raster_pipeline2(shadow_mapping_pipeline_info()).value();
     forward_pipeline = gpu.pipeline_manager.add_raster_pipeline2(forward_pipeline_info()).value();
+    draw_swapchain_pipeline = gpu.pipeline_manager.add_compute_pipeline2(draw_swapchain_pipeline_info()).value();
 
     init_task_graphs();
 }
@@ -41,6 +43,16 @@ void Renderer::init_resources(Window const & window)
         .address_mode_u = daxa::SamplerAddressMode::CLAMP_TO_BORDER,
         .address_mode_v = daxa::SamplerAddressMode::CLAMP_TO_BORDER,
         .name = "shadow sampler",
+    });
+    t_draw_image = daxa::ExternalTaskImage({
+        .image = gpu.device.create_image({
+            .format = daxa::Format::R32G32B32A32_SFLOAT,
+            .size = {.x = window.width, .y = window.height, .z = 1},
+            .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
+                     daxa::ImageUsageFlagBits::SHADER_STORAGE,
+            .name = "draw image",
+        }),
+        .name = "task draw image",
     });
     t_depth_image = daxa::ExternalTaskImage({
         .image = gpu.device.create_image({
@@ -93,22 +105,31 @@ void Renderer::init_task_graphs()
     });
 
     loop_task_graph.register_image(gpu.t_swapchain_image);
+    loop_task_graph.register_image(t_draw_image);
     loop_task_graph.register_image(t_depth_image);
     loop_task_graph.register_image(t_shadow_depth_image);
 
+    // Since this->scene value changes every frame, we must pass a pointer to it
     loop_task_graph.add_task(daxa::RasterTask("draw shadow depth")
-                                 .depth_stencil_attachment.writes(t_shadow_depth_image)
-                                 .executes([this, sdv = t_shadow_depth_image.view()](daxa::TaskInterface ti)
-                                           { shadow_mapping_task(ti, *shadow_pipeline, sdv, global_buffer, &scene); }));
-    loop_task_graph.add_task(
-        daxa::RasterTask("draw forward")
-            .reads(daxa::TaskStages::FRAGMENT_SHADER, t_shadow_depth_image)
-            .color_attachment.writes(gpu.t_swapchain_image)
-            .depth_stencil_attachment.writes(t_depth_image)
-            .executes([this, cv = gpu.t_swapchain_image.view(), dv = t_depth_image.view(),
-                       sdv = t_shadow_depth_image.view()](daxa::TaskInterface ti)
-                      { forward_task(ti, *forward_pipeline, cv, dv, sdv, global_buffer, &scene); }));
-    loop_task_graph.add_task(daxa::InlineTask::Raster("draw GUI")
+                                 .depth_stencil_attachment.writes(t_shadow_depth_image.view())
+                                 .executes(shadow_mapping_callback, shadow_pipeline.get(), &scene,
+                                           t_shadow_depth_image.view(), global_buffer));
+    loop_task_graph.add_task(daxa::RasterTask("draw forward")
+                                 .uses_head<ForwardPassHead::Info>()
+                                 .head_views({
+                                     .color_target = t_draw_image.view(),
+                                     .depth_target = t_depth_image.view(),
+                                     .shadow_depth_image = t_shadow_depth_image.view(),
+                                 })
+                                 .executes(forward_callback, forward_pipeline.get(), &scene, global_buffer));
+    loop_task_graph.add_task(daxa::ComputeTask("draw to swapchain")
+                                 .uses_head<DrawSwapchainHead::Info>()
+                                 .head_views({
+                                     .draw_image = t_draw_image.view(),
+                                     .swapchain_image = gpu.t_swapchain_image.view(),
+                                 })
+                                 .executes(draw_swapchain_callback, draw_swapchain_pipeline.get(), global_buffer));
+    loop_task_graph.add_task(daxa::RasterTask("draw GUI")
                                  .color_attachment.writes(gpu.t_swapchain_image)
                                  .executes(
                                      [this, cv = gpu.t_swapchain_image.view()](daxa::TaskInterface ti)
@@ -154,6 +175,14 @@ void Renderer::resize_resources(Window const & window)
         .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT,
         .name = "depth image",
     }));
+    gpu.device.destroy_image(t_draw_image.info().image);
+    t_draw_image.set_image(gpu.device.create_image({
+        .format = daxa::Format::R32G32B32A32_SFLOAT,
+        .size = {.x = window.width, .y = window.height, .z = 1},
+        .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
+                 daxa::ImageUsageFlagBits::SHADER_STORAGE,
+        .name = "draw image",
+    }));
 }
 
 void Renderer::cleanup() const
@@ -165,4 +194,5 @@ void Renderer::cleanup() const
     gpu.device.destroy_buffer(global_buffer);
     gpu.device.destroy_image(t_depth_image.info().image);
     gpu.device.destroy_image(t_shadow_depth_image.info().image);
+    gpu.device.destroy_image(t_draw_image.info().image);
 }

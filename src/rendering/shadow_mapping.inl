@@ -38,27 +38,27 @@ inline daxa::RasterPipelineCompileInfo2 shadow_mapping_pipeline_info()
     };
 }
 
-inline void shadow_mapping_task(daxa::TaskInterface & ti, daxa::RasterPipeline & pipeline,
-                                daxa::TaskImageView shadow_depth_view, daxa::BufferId global_buffer,
-                                Scene const * const * scene_ptr)
+inline void shadow_mapping_callback(daxa::TaskInterface ti, daxa::RasterPipeline const * pipeline, Scene const ** scene,
+                                    daxa::TaskImageView depth_target, daxa::BufferId global_buffer)
 {
     daxa::RenderCommandRecorder cr = std::move(ti.recorder)
                                          .begin_renderpass({
                                              .depth_attachment =
                                                  daxa::RenderAttachmentInfo{
-                                                     .image_view = ti.view(shadow_depth_view),
+                                                     .image_view = ti.view(depth_target),
                                                      .load_op = daxa::AttachmentLoadOp::CLEAR,
                                                      .clear_value = daxa::DepthValue{.depth = 1.0f, .stencil = 0},
                                                  },
                                              .render_area = {.width = SHADOW_MAP_SIZE, .height = SHADOW_MAP_SIZE},
                                          });
-    cr.set_pipeline(pipeline);
+    cr.set_pipeline(*pipeline);
     cr.set_depth_bias({.constant_factor = -0.001f, .slope_factor = 1.75f});
 
-    ShadowPassPC push;
-    push.global_buffer = ti.device.device_address(global_buffer).value();
+    ShadowPassPC push = {
+        .global_buffer = ti.device.device_address(global_buffer).value(),
+    };
 
-    for (auto const & draw : (*scene_ptr)->opaque_draws)
+    for (auto const & draw : (*scene)->opaque_draws)
     {
         cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
         push.model_matrix = draw.transform;

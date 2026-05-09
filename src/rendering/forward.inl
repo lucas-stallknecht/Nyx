@@ -2,15 +2,22 @@
 
 #include "../include/gpu_globals.inl"
 #include <daxa/daxa.inl>
+#include <daxa/utils/task_graph.inl>
+
+DAXA_DECL_RASTER_TASK_HEAD_BEGIN(ForwardPassHead)
+DAXA_TH_IMAGE(COLOR_ATTACHMENT, REGULAR_2D, color_target)
+DAXA_TH_IMAGE(DEPTH_ATTACHMENT, REGULAR_2D, depth_target)
+DAXA_TH_IMAGE_ID(FRAGMENT_SHADER::READ, REGULAR_2D, shadow_depth_image)
+DAXA_DECL_TASK_HEAD_END
 
 struct ForwardPassPC
 {
     daxa_f32mat4x4 model_matrix;
     daxa_u32 material_idx;
-    daxa_ImageViewId shadow_depth_image;
     daxa_BufferPtr(GPUGlobals) global_buffer;
     daxa_BufferPtr(GPUMaterial) material_buffer;
     daxa_BufferPtr(Vertex) vertex_buffer;
+    DAXA_TH_BLOB(ForwardPassHead, attachments)
 };
 
 #if defined(__cplusplus)
@@ -25,7 +32,7 @@ inline daxa::RasterPipelineCompileInfo2 forward_pipeline_info()
     return {
         .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/forward.glsl"}},
         .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/forward.glsl"}},
-        .color_attachments = {{.format = gpu.swapchain.get_format()}},
+        .color_attachments = {{.format = daxa::Format::R32G32B32A32_SFLOAT}},
         .depth_test =
             daxa::DepthTestInfo{
                 .depth_attachment_format = daxa::Format::D32_SFLOAT,
@@ -37,37 +44,38 @@ inline daxa::RasterPipelineCompileInfo2 forward_pipeline_info()
     };
 }
 
-inline void forward_task(daxa::TaskInterface & ti, daxa::RasterPipeline & pipeline, daxa::TaskImageView color_view,
-                         daxa::TaskImageView depth_view, daxa::TaskImageView shadow_depth_view,
-                         daxa::BufferId global_buffer, Scene const * const * scene_ptr)
+inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const * pipeline, Scene const ** scene,
+                             daxa::BufferId global_buffer)
 {
-    daxa::Extent3D size = ti.info(color_view).value().size;
+    auto const & AT = ForwardPassHead::Info::AT;
+    daxa::Extent3D size = ti.info(AT.color_target).value().size;
     daxa::RenderCommandRecorder cr =
         std::move(ti.recorder)
             .begin_renderpass({
                 .color_attachments =
                     std::array{
                         daxa::RenderAttachmentInfo{
-                            .image_view = ti.view(color_view),
+                            .image_view = ti.view(AT.color_target),
                             .load_op = daxa::AttachmentLoadOp::CLEAR,
                             .clear_value = std::array<daxa::f32, 4>{0.463f, 0.706f, 0.80f, 1.0f},
                         },
                     },
                 .depth_attachment =
                     daxa::RenderAttachmentInfo{
-                        .image_view = ti.view(depth_view),
+                        .image_view = ti.view(AT.depth_target),
                         .load_op = daxa::AttachmentLoadOp::CLEAR,
                         .clear_value = daxa::DepthValue{.depth = 1.0f, .stencil = 0},
                     },
                 .render_area = {.width = size.x, .height = size.y},
             });
-    cr.set_pipeline(pipeline);
+    cr.set_pipeline(*pipeline);
 
-    ForwardPassPC push = {};
-    push.shadow_depth_image = ti.view(shadow_depth_view);
-    push.global_buffer = ti.device.device_address(global_buffer).value();
+    ForwardPassPC push = {
+        .global_buffer = gpu.device.device_address(global_buffer).value(),
+        .attachments = ti.attachment_shader_blob,
+    };
 
-    for (auto const & draw : (*scene_ptr)->opaque_draws)
+    for (auto const & draw : (*scene)->opaque_draws)
     {
         cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
         push.model_matrix = draw.transform;

@@ -105,7 +105,7 @@ float calc_shadow(daxa_SamplerId shadow_sampler) {
     vec3 proj_coords = f_in.light_space_pos.xyz / f_in.light_space_pos.w;
 
     vec2 tex_coord = proj_coords.xy * 0.5 + 0.5; // [-1, 1] -> [0, 1]
-    float closest_depth = texture(daxa_sampler2D(push.shadow_depth_image, shadow_sampler), tex_coord).r;
+    float closest_depth = texture(daxa_sampler2D(push.attachments.shadow_depth_image, shadow_sampler), tex_coord).r;
     float current_depth = proj_coords.z;
 
     return current_depth > closest_depth ? 1.0 : 0.0;
