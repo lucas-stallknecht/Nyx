@@ -12,6 +12,7 @@ struct RenderDependencies
     daxa::ExternalTaskImage color_target;
     daxa::BufferId camera_buffer;
     daxa::BufferId light_buffer;
+    daxa::ImageId env_map;
     Model * model;
 };
 

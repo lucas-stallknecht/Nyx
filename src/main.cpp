@@ -190,8 +190,11 @@ int main()
         .name = "light buffer",
     });
 
-    auto sponza_handle = asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb");
-    Model * sponza = asset_manager.models.get(sponza_handle.value());
+    auto env_map_handle = asset_manager.load_texture(std::string(ASSETS_DIR) + "textures/bunker.ktx");
+    Texture * env_map = asset_manager.textures.get(env_map_handle.value());
+
+    auto model_handle = asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb");
+    Model * model = asset_manager.models.get(model_handle.value());
 
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForVulkan(window.glfw_window_ptr, true);
@@ -201,7 +204,8 @@ int main()
                               .color_target = gpu.t_swapchain_image,
                               .camera_buffer = cam_buffer,
                               .light_buffer = light_buffer,
-                              .model = sponza,
+                              .env_map = env_map->image,
+                              .model = model,
                           });
 
     while (!window.should_close())

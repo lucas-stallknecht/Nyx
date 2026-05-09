@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <daxa/gpu_resources.hpp>
 
 using u8 = std::uint8_t;
 using u32 = std::uint32_t;
@@ -26,4 +27,10 @@ struct Handle
 
     bool valid() const { return idx != 0 && gen != 0; };
     bool operator==(Handle const & other) const = default;
+};
+
+struct Texture
+{
+    Handle handle;
+    daxa::ImageId image;
 };

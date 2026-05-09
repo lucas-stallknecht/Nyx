@@ -18,6 +18,7 @@ add_executable(${PROJECT_NAME}
   src/asset_manager.cpp
   src/renderer.cpp
   src/utils/gltf.cpp
+  src/utils/ktx.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

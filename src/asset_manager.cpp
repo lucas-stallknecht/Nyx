@@ -3,6 +3,7 @@
 #include "gpu_context.hpp"
 #include "types.hpp"
 #include "utils/gltf.hpp"
+#include "utils/ktx.hpp"
 #include "utils/upload.hpp"
 #include <fmt/core.h>
 #include <fastgltf/core.hpp>
@@ -30,6 +31,15 @@ void AssetManager::cleanup()
         };
     }
     model_cache.clear();
+    for (usize i = 0; i < textures.items_count; i++)
+    {
+        Texture & texture = textures.items[i];
+        if (!texture.image.is_empty())
+        {
+            gpu.device.destroy_image(texture.image);
+        }
+    }
+    texture_cache.clear();
 }
 
 std::expected<Handle, LoadModelError> AssetManager::load_model(std::string_view path)
@@ -158,6 +168,41 @@ std::expected<Handle, LoadModelError> AssetManager::load_model(std::string_view 
 
     Handle out = models.insert(model);
     model_cache.insert({file_path.string(), out});
+
+    return out;
+}
+
+std::expected<Handle, LoadTextureError> AssetManager::load_texture(std::string_view path)
+{
+    fmt::println("Loading {}", path);
+
+    std::filesystem::path file_path = path;
+
+    if (texture_cache.contains(file_path.string()))
+    {
+        return texture_cache.at(file_path.string());
+    }
+
+    if (!std::filesystem::exists(file_path))
+    {
+        fmt::println("Failed to load: {}. File not found", path);
+        return std::unexpected(LoadTextureError::File_Not_Found);
+    }
+
+    std::expected<ImageData, std::string> img_data = utils::ktx::create_from_file(file_path.string().c_str());
+    if (!img_data)
+    {
+        fmt::println("{}: {}", path, img_data.error());
+        return std::unexpected(LoadTextureError::Failed_To_Load);
+    }
+
+    Texture texture = {
+        .image = create_and_upload_image(img_data.value().data.data(), img_data.value().data.size(),
+                                         img_data.value().mip_infos, img_data.value().info),
+    };
+
+    Handle out = textures.insert(texture);
+    texture_cache.insert({file_path.string(), out});
 
     return out;
 }

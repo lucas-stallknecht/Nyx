@@ -13,7 +13,7 @@
 namespace
 {
 
-    mat4 trs_to_mat4(fastgltf::TRS const & trs)
+    mat4 trs_to_mat4_impl(fastgltf::TRS const & trs)
     {
         mat4 T = glm::translate(mat4(1.0f), vec3(trs.translation.x(), trs.translation.y(), trs.translation.z()));
 
@@ -25,8 +25,8 @@ namespace
         return T * R * S;
     }
 
-    u32 find_cached_image_from_texture(fastgltf::Asset const & asset, fastgltf::Texture const & texture,
-                                       utils::gltf::LocalImageCache const & image_cache)
+    u32 find_cached_image_from_texture_impl(fastgltf::Asset const & asset, fastgltf::Texture const & texture,
+                                            utils::gltf::LocalImageCache const & image_cache)
     {
         fastgltf::Image const * img = nullptr;
 
@@ -174,88 +174,45 @@ namespace utils::gltf
             std::visit(
                 fastgltf::visitor{
                     [](auto & /* image_data */) {},
-                    [&](fastgltf::sources::URI & /* uri */)
+                    [&](fastgltf::sources::URI & uri)
                     {
-                        // TODO: Handle this
+                        std::expected<ImageData, std::string> image = utils::ktx::create_from_file(uri.uri.c_str());
+
+                        if (!image)
+                        {
+                            fmt::println("{}: {}", gltf_image.name, image.error());
+                            return;
+                        }
+
+                        auto out_idx = static_cast<u32>(out.images.size());
+                        out.image_cache.emplace(&gltf_image, out_idx);
+                        out.images.push_back(std::move(image.value()));
                     },
                     [&](fastgltf::sources::BufferView & view)
                     {
                         fastgltf::BufferView & buffer_view = asset.bufferViews[view.bufferViewIndex];
                         fastgltf::Buffer & buffer = asset.buffers[buffer_view.bufferIndex];
-                        std::visit(
-                            fastgltf::visitor{
-                                [](auto const & /* buffer */) {},
-                                [&](fastgltf::sources::Array & array)
-                                {
-                                    auto const * bytes = reinterpret_cast<ktx_uint8_t const *>(array.bytes.data() +
-                                                                                               buffer_view.byteOffset);
-                                    ktx_size_t size = buffer_view.byteLength;
+                        std::visit(fastgltf::visitor{[](auto const & /* buffer */) {},
+                                                     [&](fastgltf::sources::Array & array)
+                                                     {
+                                                         auto const * bytes = reinterpret_cast<ktx_uint8_t const *>(
+                                                             array.bytes.data() + buffer_view.byteOffset);
+                                                         ktx_size_t size = buffer_view.byteLength;
 
-                                    ktxTexture2 * texture = nullptr;
-                                    KTX_error_code result = ktxTexture2_CreateFromMemory(
-                                        bytes, size, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &texture);
+                                                         std::expected<ImageData, std::string> image =
+                                                             utils::ktx::create_from_memory(bytes, size);
 
-                                    if (result != KTX_SUCCESS)
-                                    {
-                                        fmt::println("Failed to load KTX texture {}: {}", gltf_image.name,
-                                                     ktxErrorString(result));
-                                        return;
-                                    }
+                                                         if (!image)
+                                                         {
+                                                             fmt::println("{}: {}", gltf_image.name, image.error());
+                                                             return;
+                                                         }
 
-                                    if (ktxTexture2_NeedsTranscoding(texture))
-                                    {
-                                        KTX_error_code transcode_result =
-                                            ktxTexture2_TranscodeBasis(texture, KTX_TTF_RGBA32, 0);
-
-                                        if (transcode_result != KTX_SUCCESS)
-                                        {
-                                            fmt::println("Failed to transcode texture");
-                                            ktxTexture2_Destroy(texture);
-                                            return;
-                                        }
-                                    }
-                                    for (u32 i = 0; i < texture->numLevels; i++)
-                                    {
-                                        ktx_size_t mip_offset = 0;
-                                        KTX_error_code ret = ktxTexture2_GetImageOffset(texture, i, 0, 0, &mip_offset);
-                                        if (ret != KTX_SUCCESS)
-                                        {
-                                            fmt::println("Failed to get image offset {}", ktxErrorString(ret));
-                                            break;
-                                        }
-
-                                        image.mip_infos.emplace_back(ImageMipInfo{
-                                            .offset = mip_offset,
-                                            .extent =
-                                                {
-                                                    .x = texture->baseWidth >> i,
-                                                    .y = texture->baseHeight >> i,
-                                                    .z = 1,
-                                                },
-                                        });
-                                    }
-                                    image.data.resize(texture->dataSize);
-                                    memcpy(image.data.data(), texture->pData, texture->dataSize);
-
-                                    image.info = {
-                                        .dimensions = 2,
-                                        .format = utils::ktx::vk_to_daxa_format(texture->vkFormat),
-                                        .size = {texture->baseWidth, texture->baseHeight, 1},
-                                        .mip_level_count = texture->numLevels,
-                                        .array_layer_count = 1,
-                                        .sample_count = 1,
-                                        .usage = daxa::ImageUsageFlagBits::TRANSFER_DST |
-                                                 daxa::ImageUsageFlagBits::SHADER_SAMPLED |
-                                                 daxa::ImageUsageFlagBits::SHADER_STORAGE,
-                                        .name = std::string(gltf_image.name) + " texture",
-                                    };
-                                    auto out_idx = static_cast<u32>(out.images.size());
-                                    out.image_cache.emplace(&gltf_image, out_idx);
-                                    out.images.push_back(std::move(image));
-
-                                    ktxTexture2_Destroy(texture);
-                                }},
-                            buffer.data);
+                                                         auto out_idx = static_cast<u32>(out.images.size());
+                                                         out.image_cache.emplace(&gltf_image, out_idx);
+                                                         out.images.push_back(std::move(image.value()));
+                                                     }},
+                                   buffer.data);
                     }},
                 gltf_image.data);
         }
@@ -282,19 +239,19 @@ namespace utils::gltf
             if (gltf_mat.pbrData.baseColorTexture)
             {
                 fastgltf::Texture texture = asset.textures[gltf_mat.pbrData.baseColorTexture->textureIndex];
-                mat.base_color_texture = find_cached_image_from_texture(asset, texture, image_cache);
+                mat.base_color_texture = find_cached_image_from_texture_impl(asset, texture, image_cache);
             }
 
             if (gltf_mat.pbrData.metallicRoughnessTexture)
             {
                 fastgltf::Texture texture = asset.textures[gltf_mat.pbrData.metallicRoughnessTexture->textureIndex];
-                mat.metallic_roughness_texture = find_cached_image_from_texture(asset, texture, image_cache);
+                mat.metallic_roughness_texture = find_cached_image_from_texture_impl(asset, texture, image_cache);
             }
 
             if (gltf_mat.normalTexture)
             {
                 fastgltf::Texture texture = asset.textures[gltf_mat.normalTexture->textureIndex];
-                mat.normal_texture = find_cached_image_from_texture(asset, texture, image_cache);
+                mat.normal_texture = find_cached_image_from_texture_impl(asset, texture, image_cache);
             }
 
             out.push_back(mat);
@@ -316,7 +273,7 @@ namespace utils::gltf
 
                     if constexpr (std::is_same_v<T, fastgltf::TRS>)
                     {
-                        return trs_to_mat4(t);
+                        return trs_to_mat4_impl(t);
                     }
                     else
                     {
