@@ -4,7 +4,6 @@
 #include "rendering/forward.inl"
 #include "rendering/draw_swapchain.inl"
 #include "gpu_context.hpp"
-#include "gpu_globals.inl"
 #include <imgui.h>
 
 void Renderer::init(Window const & window)
@@ -82,7 +81,7 @@ void Renderer::init_resources(Window const & window)
         .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
         .name = "camera buffer",
     });
-    light_buffer = gpu.device.create_buffer({
+    frame_data_buffer = gpu.device.create_buffer({
         .size = sizeof(GPULightInfo),
         .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
         .name = "light buffer",
@@ -92,7 +91,7 @@ void Renderer::init_resources(Window const & window)
         .default_linear_sampler = default_linear_sampler,
         .shadow_sampler = shadow_sampler,
         .camera_buffer = gpu.device.device_address(camera_buffer).value(),
-        .light_buffer = gpu.device.device_address(light_buffer).value(),
+        .frame_data_buffer = gpu.device.device_address(frame_data_buffer).value(),
     };
 }
 
@@ -162,7 +161,7 @@ void Renderer::render(FrameUniforms const & uniforms, Scene const & s)
     // Update internal scene lookup
     scene = &s;
     *gpu.device.buffer_host_address_as<GPUCamera>(camera_buffer).value() = uniforms.camera;
-    *gpu.device.buffer_host_address_as<GPULightInfo>(light_buffer).value() = uniforms.lights;
+    *gpu.device.buffer_host_address_as<GPUFrameData>(frame_data_buffer).value() = uniforms.frame_data;
     loop_task_graph.execute({});
 }
 
@@ -190,7 +189,7 @@ void Renderer::cleanup() const
     gpu.device.destroy_sampler(default_linear_sampler);
     gpu.device.destroy_sampler(shadow_sampler);
     gpu.device.destroy_buffer(camera_buffer);
-    gpu.device.destroy_buffer(light_buffer);
+    gpu.device.destroy_buffer(frame_data_buffer);
     gpu.device.destroy_buffer(global_buffer);
     gpu.device.destroy_image(t_depth_image.info().image);
     gpu.device.destroy_image(t_shadow_depth_image.info().image);

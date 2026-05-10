@@ -17,6 +17,8 @@ struct PointLight
 
 struct GPULightInfo
 {
+    daxa_f32vec3 ambient_light_color;
+    daxa_f32 ambient_light_intensity;
     daxa_f32vec3 dir_light_direction;
     daxa_f32 dir_light_intensity;
     daxa_f32vec3 dir_light_color;
@@ -24,4 +26,3 @@ struct GPULightInfo
     daxa_u32 num_point_lights;
     PointLight point_lights[MAX_POINT_LIGHTS];
 };
-DAXA_DECL_BUFFER_PTR(GPULightInfo);

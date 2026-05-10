@@ -24,7 +24,7 @@ void main()
     Vertex vert = deref_i(push.vertex_buffer, gl_VertexIndex);
     GPUGlobals global = deref(push.global_buffer);
     GPUCamera cam = deref(global.camera_buffer);
-    GPULightInfo light_info = deref(global.light_buffer);
+    GPULightInfo light_info = deref(global.frame_data_buffer).lights;
 
     vec4 world_pos = push.model_matrix * vec4(vert.position, 1.0);
     gl_Position = cam.proj * cam.view * world_pos;
@@ -116,7 +116,8 @@ void main()
     GPUGlobals global = deref(push.global_buffer);
     GPUMaterial mat = deref_i(push.material_buffer, push.material_idx);
     GPUCamera cam = deref(global.camera_buffer);
-    GPULightInfo light_info = deref(global.light_buffer);
+    GPUFrameData frame_data = deref(global.frame_data_buffer);
+    GPULightInfo light_info = frame_data.lights;
 
     Surface surface;
     surface.albedo = mat.base_color;
@@ -143,8 +144,7 @@ void main()
 
     vec3 view_dir = normalize(cam.position - f_in.pos);
 
-    float ambient = 0.06;
-    vec3 color = ambient * surface.albedo;
+    vec3 color = light_info.ambient_light_intensity * light_info.ambient_light_color * surface.albedo;
 
     float shadow = calc_shadow(global.shadow_sampler);
     color += (1.0 - shadow) * calc_directional_lighting(

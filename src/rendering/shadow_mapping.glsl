@@ -12,7 +12,7 @@ void main()
 {
     Vertex vert = deref_i(push.vertex_buffer, gl_VertexIndex);
     GPUGlobals global = deref(push.global_buffer);
-    GPULightInfo light_info = deref(global.light_buffer);
+    GPULightInfo light_info = deref(global.frame_data_buffer).lights;
     gl_Position = light_info.dir_light_matrix * push.model_matrix * vec4(vert.position, 1.0);
 }
 

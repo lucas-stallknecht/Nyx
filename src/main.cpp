@@ -23,13 +23,17 @@ namespace
         float shadow_range = 15.0f;
         float shadow_near = 0.1f;
         float shadow_far = 50.0f;
+
+        float exposure = 1.0f;
     };
 
     static AppState app_state = {
         .light_info =
             {
+                .ambient_light_color = {1.0f, 1.0f, 1.0f},
+                .ambient_light_intensity = 0.05f,
                 .dir_light_direction = {0.25f, 1.0f, 0.1f},
-                .dir_light_intensity = 5.0f,
+                .dir_light_intensity = 3.0f,
                 .dir_light_color = {1.0f, 1.0f, 1.0f},
                 .num_point_lights = 1,
             },
@@ -39,58 +43,74 @@ namespace
     {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        ImGui::Begin("Settings");
 
-        ImGui::Begin("Lighting");
-        ImGui::SeparatorText("Directional Light");
-
-        ImGui::DragFloat("Intensity", &app_state.light_info.dir_light_intensity, 0.01f, 0.0f, 10.0f);
-        ImGui::DragFloat3("Direction", &app_state.light_info.dir_light_direction.x, 0.01f);
-        ImGui::ColorEdit3("Color", &app_state.light_info.dir_light_color.x);
-
-        ImGui::Spacing();
-
-        ImGui::DragFloat("Light Distance", &app_state.light_distance, 0.1f, 1.0f, 200.0f);
-        ImGui::DragFloat("Shadow Range", &app_state.shadow_range, 0.1f, 1.0f, 200.0f);
-        ImGui::DragFloat("Shadow Near", &app_state.shadow_near, 0.01f, 0.001f, 20.0f);
-        ImGui::DragFloat("Shadow Far", &app_state.shadow_far, 0.1f, 1.0f, 500.0f);
-
-        ImGui::SeparatorText("Point Lights");
-        ImGui::SliderInt("Count", reinterpret_cast<int *>(&app_state.light_info.num_point_lights), 0, MAX_POINT_LIGHTS);
-
-        for (u32 i = 0; i < app_state.light_info.num_point_lights; ++i)
+        if (ImGui::CollapsingHeader("Ambient light", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            PointLight & light = app_state.light_info.point_lights[i];
+            ImGui::DragFloat("Intensity#ambient", &app_state.light_info.ambient_light_intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::ColorEdit3("Color#ambient", &app_state.light_info.ambient_light_color.x);
+        }
 
-            ImGui::PushID(static_cast<int>(i));
+        if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::DragFloat("Intensity#dir", &app_state.light_info.dir_light_intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::DragFloat3("Direction#dir", &app_state.light_info.dir_light_direction.x, 0.01f);
+            ImGui::ColorEdit3("Color#dir", &app_state.light_info.dir_light_color.x);
+        }
 
-            if (ImGui::TreeNode("Point Light"))
+        if (ImGui::CollapsingHeader("Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::DragFloat("Light Distance", &app_state.light_distance, 0.1f, 1.0f, 200.0f);
+            ImGui::DragFloat("Shadow Range", &app_state.shadow_range, 0.1f, 1.0f, 200.0f);
+            ImGui::DragFloat("Shadow Near", &app_state.shadow_near, 0.01f, 0.001f, 20.0f);
+            ImGui::DragFloat("Shadow Far", &app_state.shadow_far, 0.1f, 1.0f, 500.0f);
+        }
+
+        if (ImGui::CollapsingHeader("Point lights", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::SliderInt("Count", reinterpret_cast<int *>(&app_state.light_info.num_point_lights), 0,
+                             MAX_POINT_LIGHTS);
+
+            for (u32 i = 0; i < app_state.light_info.num_point_lights; ++i)
             {
-                ImGui::DragFloat3("Position", &light.position.x, 0.05f);
-                ImGui::ColorEdit3("Color", &light.color.x);
-                ImGui::DragFloat("Linear", &light.linear, 0.001f, 0.001f, 10.0f);
-                ImGui::DragFloat("Quadratic", &light.quadratic, 0.001f, 0.001f, 20.0f);
+                PointLight & light = app_state.light_info.point_lights[i];
 
-                // Useful presets
-                if (ImGui::Button("7m Range"))
+                ImGui::PushID(static_cast<int>(i));
+
+                if (ImGui::TreeNode("Point Light"))
                 {
-                    light.linear = 0.7f;
-                    light.quadratic = 1.8f;
+                    ImGui::DragFloat3("Position", &light.position.x, 0.05f);
+                    ImGui::ColorEdit3("Color", &light.color.x);
+                    ImGui::DragFloat("Linear", &light.linear, 0.001f, 0.001f, 10.0f);
+                    ImGui::DragFloat("Quadratic", &light.quadratic, 0.001f, 0.001f, 20.0f);
+
+                    // Useful presets
+                    if (ImGui::Button("7m Range"))
+                    {
+                        light.linear = 0.7f;
+                        light.quadratic = 1.8f;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("20m Range"))
+                    {
+                        light.linear = 0.22f;
+                        light.quadratic = 0.20f;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("50m Range"))
+                    {
+                        light.linear = 0.09f;
+                        light.quadratic = 0.032f;
+                    }
+                    ImGui::TreePop();
                 }
-                ImGui::SameLine();
-                if (ImGui::Button("20m Range"))
-                {
-                    light.linear = 0.22f;
-                    light.quadratic = 0.20f;
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("50m Range"))
-                {
-                    light.linear = 0.09f;
-                    light.quadratic = 0.032f;
-                }
-                ImGui::TreePop();
+                ImGui::PopID();
             }
-            ImGui::PopID();
+        }
+
+        if (ImGui::CollapsingHeader("Post Processing", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::DragFloat("Exposure", &app_state.exposure, 0.001f, 0.001f, 8.0f);
         }
 
         ImGui::End();
@@ -142,9 +162,10 @@ namespace
             .view = std::bit_cast<daxa_f32mat4x4>(app_state.camera.get_view()),
             .position = std::bit_cast<daxa_f32vec3>(app_state.camera.position),
         };
-        frame.lights = app_state.light_info;
-        frame.lights.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
-        frame.lights.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
+        frame.frame_data.lights = app_state.light_info;
+        frame.frame_data.lights.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
+        frame.frame_data.lights.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
+        frame.frame_data.exposure = app_state.exposure;
         return frame;
     }
 

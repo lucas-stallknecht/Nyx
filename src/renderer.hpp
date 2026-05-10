@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gpu_lighting.inl"
+#include "gpu_globals.inl"
 #include "scene.hpp"
 #include "window.hpp"
 #include <daxa/daxa.hpp>
@@ -11,7 +11,7 @@
 struct FrameUniforms
 {
     GPUCamera camera;
-    GPULightInfo lights;
+    GPUFrameData frame_data;
 };
 
 struct Renderer
@@ -23,7 +23,8 @@ struct Renderer
     daxa::SamplerId default_linear_sampler;
     daxa::SamplerId shadow_sampler;
     daxa::BufferId camera_buffer;
-    daxa::BufferId light_buffer;
+    daxa::BufferId frame_data_buffer;
+    daxa::BufferId params_buffer;
     daxa::BufferId global_buffer;
     daxa::ExternalTaskImage t_draw_image;
     daxa::ExternalTaskImage t_depth_image;
