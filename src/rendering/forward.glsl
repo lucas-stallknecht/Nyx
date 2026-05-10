@@ -8,7 +8,7 @@
 DAXA_DECL_PUSH_CONSTANT(ForwardPassPC, push)
 
 struct VOut {
-    vec3 pos;
+    vec3 world_pos;
     vec2 uv;
     vec3 norm;
     mat3 tbn;
@@ -29,7 +29,7 @@ void main()
     vec4 world_pos = push.model_matrix * vec4(vert.position, 1.0);
     gl_Position = cam.proj * cam.view * world_pos;
 
-    v_out.pos = world_pos.xyz;
+    v_out.world_pos = world_pos.xyz;
     v_out.uv = vert.uv;
     // Make a normal matrix if scales become non-uniform
     mat3 model = mat3(push.model_matrix);
@@ -37,7 +37,7 @@ void main()
     vec3 tangent = normalize(model * vert.tangent.xyz);
     vec3 bitangent = normalize(model * cross(v_out.norm, tangent) * vert.tangent.w);
     v_out.tbn = mat3(tangent, bitangent, v_out.norm);
-    v_out.light_space_pos = light_info.dir_light_matrix * vec4(v_out.pos, 1.0);
+    v_out.light_space_pos = light_info.dir_light_matrix * vec4(v_out.world_pos, 1.0);
 }
 
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
@@ -89,7 +89,7 @@ vec3 calc_directional_lighting(Surface surface, vec3 view_dir, vec3 light_dir, v
 }
 
 vec3 calc_point_lighting(Surface surface, PointLight light, vec3 view_dir) {
-    vec3 light_dir = light.position - f_in.pos;
+    vec3 light_dir = light.position - f_in.world_pos;
     float distance = length(light_dir);
     light_dir = normalize(light_dir);
 
@@ -142,9 +142,14 @@ void main()
         surface.metallic = tex_value.b;
     }
 
-    vec3 view_dir = normalize(cam.position - f_in.pos);
+    vec3 view_dir = normalize(cam.position - f_in.world_pos);
 
-    vec3 color = light_info.ambient_light_intensity * light_info.ambient_light_color * surface.albedo;
+    float ao = 1.0;
+    if (frame_data.ssao_enabled) {
+        vec2 ss_uv = gl_FragCoord.xy / imageSize(daxa_image2D(push.attachments.ssao_image));
+        ao = texture(daxa_sampler2D(push.attachments.ssao_image, global.default_linear_sampler), ss_uv).r;
+    }
+    vec3 color = light_info.ambient_light_intensity * light_info.ambient_light_color * ao * surface.albedo;
 
     float shadow = calc_shadow(global.shadow_sampler);
     color += (1.0 - shadow) * calc_directional_lighting(

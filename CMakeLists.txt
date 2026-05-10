@@ -20,6 +20,7 @@ add_executable(${PROJECT_NAME}
   src/scene.cpp
   src/utils/gltf.cpp
   src/utils/ktx.cpp
+  src/utils/upload.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

@@ -13,7 +13,9 @@ DAXA_DECL_BUFFER_PTR(Vertex)
 struct GPUCamera
 {
     daxa_f32mat4x4 proj;
+    daxa_f32mat4x4 inv_proj;
     daxa_f32mat4x4 view;
+    daxa_f32mat4x4 inv_view;
     daxa_f32vec3 position;
 };
 DAXA_DECL_BUFFER_PTR(GPUCamera);

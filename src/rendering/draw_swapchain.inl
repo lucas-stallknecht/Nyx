@@ -11,14 +11,12 @@ DAXA_DECL_TASK_HEAD_END
 
 struct DrawSwapchainPC
 {
-    daxa_u32vec2 size;
     daxa_BufferPtr(GPUGlobals) global_buffer;
     DAXA_TH_BLOB(DrawSwapchainHead, attachments)
 };
 
 #if defined(__cplusplus)
 
-#include "../gpu_context.hpp"
 #include <daxa/utils/pipeline_manager.hpp>
 #include <daxa/utils/task_graph.hpp>
 
@@ -40,8 +38,7 @@ inline void draw_swapchain_callback(daxa::TaskInterface ti, daxa::ComputePipelin
 
     cr.set_pipeline(*pipeline);
     cr.push_constant(DrawSwapchainPC{
-        .size = {.x = size.x, .y = size.y},
-        .global_buffer = gpu.device.device_address(global_buffer).value(),
+        .global_buffer = ti.device.device_address(global_buffer).value(),
         .attachments = ti.attachment_shader_blob,
     });
     cr.dispatch({

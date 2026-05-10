@@ -17,18 +17,24 @@ struct FrameUniforms
 struct Renderer
 {
     daxa::ImGuiRenderer imgui_renderer;
+    std::shared_ptr<daxa::RasterPipeline> depth_prepass_pipeline;
     std::shared_ptr<daxa::RasterPipeline> shadow_pipeline;
+    std::shared_ptr<daxa::ComputePipeline> ssao_pipeline;
     std::shared_ptr<daxa::RasterPipeline> forward_pipeline;
     std::shared_ptr<daxa::ComputePipeline> draw_swapchain_pipeline;
     daxa::SamplerId default_linear_sampler;
     daxa::SamplerId shadow_sampler;
+    daxa::SamplerId ssao_noise_sampler;
     daxa::BufferId camera_buffer;
     daxa::BufferId frame_data_buffer;
     daxa::BufferId params_buffer;
     daxa::BufferId global_buffer;
+    daxa::BufferId ssao_kernel_buffer;
+    daxa::ImageId ssao_noise_image;
     daxa::ExternalTaskImage t_draw_image;
     daxa::ExternalTaskImage t_depth_image;
     daxa::ExternalTaskImage t_shadow_depth_image;
+    daxa::ExternalTaskImage t_ssao_image;
     daxa::TaskGraph loop_task_graph;
 
     void init(Window const & window);
@@ -41,4 +47,5 @@ struct Renderer
     Scene const * scene = nullptr;
     void init_resources(Window const & window);
     void init_task_graphs();
+    void init_ssao();
 };

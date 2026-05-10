@@ -6,6 +6,9 @@
 struct GPUFrameData
 {
     daxa_f32 exposure;
+    daxa_b32 ssao_enabled;
+    daxa_f32 ssao_radius;
+    daxa_f32 ssao_bias;
     GPULightInfo lights;
 };
 DAXA_DECL_BUFFER_PTR(GPUFrameData);

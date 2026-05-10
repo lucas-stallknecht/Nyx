@@ -18,20 +18,24 @@ namespace
     {
         Camera camera = {};
         GPULightInfo light_info;
-        float light_distance = 20.0f;
+        f32 light_distance = 20.0f;
 
-        float shadow_range = 15.0f;
-        float shadow_near = 0.1f;
-        float shadow_far = 50.0f;
+        f32 shadow_range = 15.0f;
+        f32 shadow_near = 0.1f;
+        f32 shadow_far = 50.0f;
 
-        float exposure = 1.0f;
+        f32 exposure = 1.0f;
+
+        bool ssao_enabled = true;
+        f32 ssao_radius = 0.4f;
+        f32 ssao_bias = 0.001f;
     };
 
     static AppState app_state = {
         .light_info =
             {
                 .ambient_light_color = {1.0f, 1.0f, 1.0f},
-                .ambient_light_intensity = 0.05f,
+                .ambient_light_intensity = 0.1f,
                 .dir_light_direction = {0.25f, 1.0f, 0.1f},
                 .dir_light_intensity = 3.0f,
                 .dir_light_color = {1.0f, 1.0f, 1.0f},
@@ -113,6 +117,13 @@ namespace
             ImGui::DragFloat("Exposure", &app_state.exposure, 0.001f, 0.001f, 8.0f);
         }
 
+        if (ImGui::CollapsingHeader("SSAO", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Checkbox("Enabled", &app_state.ssao_enabled);
+            ImGui::DragFloat("Radius", &app_state.ssao_radius, 0.001f, 0.001f, 1.0f);
+            ImGui::DragFloat("Bias", &app_state.ssao_bias, 0.001f, 0.001f, 0.1f);
+        }
+
         ImGui::End();
     }
 
@@ -156,16 +167,23 @@ namespace
                                            app_state.shadow_range, app_state.shadow_near, app_state.shadow_far);
         mat4 const light_view = glm::lookAt(app_state.light_distance * light_dir, {}, {0.0f, 1.0f, 0.0f});
 
+        mat4 const cam_proj = app_state.camera.get_proj(aspect);
+        mat4 const cam_view = app_state.camera.get_view();
         FrameUniforms frame;
         frame.camera = {
-            .proj = std::bit_cast<daxa_f32mat4x4>(app_state.camera.get_proj(aspect)),
-            .view = std::bit_cast<daxa_f32mat4x4>(app_state.camera.get_view()),
+            .proj = std::bit_cast<daxa_f32mat4x4>(cam_proj),
+            .inv_proj = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_proj)),
+            .view = std::bit_cast<daxa_f32mat4x4>(cam_view),
+            .inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_view)),
             .position = std::bit_cast<daxa_f32vec3>(app_state.camera.position),
         };
         frame.frame_data.lights = app_state.light_info;
         frame.frame_data.lights.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
         frame.frame_data.lights.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
         frame.frame_data.exposure = app_state.exposure;
+        frame.frame_data.ssao_enabled = app_state.ssao_enabled;
+        frame.frame_data.ssao_bias = app_state.ssao_bias;
+        frame.frame_data.ssao_radius = app_state.ssao_radius;
         return frame;
     }
 

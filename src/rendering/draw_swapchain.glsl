@@ -24,20 +24,18 @@ void main()
 {
     GPUGlobals global = deref(push.global_buffer);
     GPUFrameData frame_data = deref(global.frame_data_buffer);
-    ivec2 tex_coord = ivec2(gl_GlobalInvocationID.xy);
-    if (tex_coord.x >= push.size.x || tex_coord.y >= push.size.y) return;
+    ivec2 tex_coords = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(daxa_image2D(push.attachments.draw_image));
+    if (tex_coords.x >= size.x || tex_coords.y >= size.y) return;
 
-    vec2 uv = vec2(tex_coord.xy) / (gl_NumWorkGroups.xy * gl_WorkGroupSize.xy);
-
-    vec3 hdr_col = imageLoad(daxa_image2D(push.attachments.draw_image), tex_coord).rgb;
-
+    vec3 hdr_col = imageLoad(daxa_image2D(push.attachments.draw_image), tex_coords).rgb;
     // Tone mapping
     vec3 out_col = hdr_col * frame_data.exposure;
     out_col = ACES_film(out_col);
     // Gamma correction
     out_col = pow(out_col.rgb, vec3(1.0 / 2.2));
 
-    imageStore(daxa_image2D(push.attachments.swapchain_image), tex_coord, vec4(out_col, 1.0));
+    imageStore(daxa_image2D(push.attachments.swapchain_image), tex_coords, vec4(out_col, 1.0));
 }
 
 #endif

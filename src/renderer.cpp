@@ -1,10 +1,47 @@
 #include "renderer.hpp"
 
+#include "rendering/depth_prepass.inl"
 #include "rendering/shadow_mapping.inl"
 #include "rendering/forward.inl"
+#include "rendering/ssao.inl"
 #include "rendering/draw_swapchain.inl"
 #include "gpu_context.hpp"
+#include "utils/upload.hpp"
 #include <imgui.h>
+#include <random>
+
+namespace
+{
+    daxa::ImageInfo make_draw_info(Window const & w)
+    {
+        return {
+            .format = daxa::Format::R32G32B32A32_SFLOAT,
+            .size = {.x = w.width, .y = w.height, .z = 1},
+            .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
+                     daxa::ImageUsageFlagBits::SHADER_STORAGE,
+            .name = "draw image",
+        };
+    }
+    daxa::ImageInfo make_depth_info(Window const & w)
+    {
+        return {
+            .format = daxa::Format::D32_SFLOAT,
+            .size = {.x = w.width, .y = w.height, .z = 1},
+            .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
+                     daxa::ImageUsageFlagBits::SHADER_STORAGE,
+            .name = "depth image",
+        };
+    }
+    daxa::ImageInfo make_ssao_info(Window const & w)
+    {
+        return {
+            .format = daxa::Format::R16_SFLOAT,
+            .size = {.x = w.width, .y = w.height, .z = 1},
+            .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::SHADER_STORAGE,
+            .name = "ssao image",
+        };
+    }
+} // namespace
 
 void Renderer::init(Window const & window)
 {
@@ -15,10 +52,13 @@ void Renderer::init(Window const & window)
 
     init_resources(window);
 
+    depth_prepass_pipeline = gpu.pipeline_manager.add_raster_pipeline2(depth_prepass_pipeline_info()).value();
     shadow_pipeline = gpu.pipeline_manager.add_raster_pipeline2(shadow_mapping_pipeline_info()).value();
+    ssao_pipeline = gpu.pipeline_manager.add_compute_pipeline2(compute_ssao_pipeline_info()).value();
     forward_pipeline = gpu.pipeline_manager.add_raster_pipeline2(forward_pipeline_info()).value();
     draw_swapchain_pipeline = gpu.pipeline_manager.add_compute_pipeline2(draw_swapchain_pipeline_info()).value();
 
+    init_ssao();
     init_task_graphs();
 }
 
@@ -44,22 +84,11 @@ void Renderer::init_resources(Window const & window)
         .name = "shadow sampler",
     });
     t_draw_image = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image({
-            .format = daxa::Format::R32G32B32A32_SFLOAT,
-            .size = {.x = window.width, .y = window.height, .z = 1},
-            .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
-                     daxa::ImageUsageFlagBits::SHADER_STORAGE,
-            .name = "draw image",
-        }),
+        .image = gpu.device.create_image(make_draw_info(window)),
         .name = "task draw image",
     });
     t_depth_image = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image({
-            .format = daxa::Format::D32_SFLOAT,
-            .size = {.x = window.width, .y = window.height, .z = 1},
-            .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT,
-            .name = "depth image",
-        }),
+        .image = gpu.device.create_image(make_depth_info(window)),
         .name = "task depth image",
     });
     t_shadow_depth_image = daxa::ExternalTaskImage({
@@ -70,6 +99,10 @@ void Renderer::init_resources(Window const & window)
             .name = "shadow depth image",
         }),
         .name = "task shadow depth image",
+    });
+    t_ssao_image = daxa::ExternalTaskImage({
+        .image = gpu.device.create_image(make_ssao_info(window)),
+        .name = "task ssao image",
     });
     global_buffer = gpu.device.create_buffer({
         .size = sizeof(GPUGlobals),
@@ -107,8 +140,21 @@ void Renderer::init_task_graphs()
     loop_task_graph.register_image(t_draw_image);
     loop_task_graph.register_image(t_depth_image);
     loop_task_graph.register_image(t_shadow_depth_image);
+    loop_task_graph.register_image(t_ssao_image);
 
     // Since this->scene value changes every frame, we must pass a pointer to it
+    loop_task_graph.add_task(daxa::RasterTask("draw depth prepass")
+                                 .depth_stencil_attachment.writes(t_depth_image.view())
+                                 .executes(depth_prepass_callback, depth_prepass_pipeline.get(), &scene,
+                                           t_depth_image.view(), global_buffer));
+    loop_task_graph.add_task(daxa::ComputeTask("compute ssao")
+                                 .uses_head<ComputeSSAOHead::Info>()
+                                 .head_views({
+                                     .depth_image = t_depth_image.view(),
+                                     .ssao_image = t_ssao_image.view(),
+                                 })
+                                 .executes(compute_ssao_callback, ssao_pipeline.get(), global_buffer,
+                                           ssao_kernel_buffer, ssao_noise_image, ssao_noise_sampler));
     loop_task_graph.add_task(daxa::RasterTask("draw shadow depth")
                                  .depth_stencil_attachment.writes(t_shadow_depth_image.view())
                                  .executes(shadow_mapping_callback, shadow_pipeline.get(), &scene,
@@ -119,6 +165,7 @@ void Renderer::init_task_graphs()
                                      .color_target = t_draw_image.view(),
                                      .depth_target = t_depth_image.view(),
                                      .shadow_depth_image = t_shadow_depth_image.view(),
+                                     .ssao_image = t_ssao_image.view(),
                                  })
                                  .executes(forward_callback, forward_pipeline.get(), &scene, global_buffer));
     loop_task_graph.add_task(daxa::ComputeTask("draw to swapchain")
@@ -149,6 +196,68 @@ void Renderer::init_task_graphs()
     loop_task_graph.complete({});
 }
 
+void Renderer::init_ssao()
+{
+
+    std::random_device rd;
+    auto gen = std::mt19937(rd());
+
+    auto dist01 = std::uniform_real_distribution<float>(0.0f, 1.0f);
+    auto dist_neg_pos = std::uniform_real_distribution<float>(-1.0f, 1.0f);
+
+    std::vector<vec3> kernel = {};
+    kernel.reserve(SSAO_N_SAMPLES);
+
+    for (u32 i = 0; i < SSAO_N_SAMPLES; i++)
+    {
+        vec3 sample = {dist_neg_pos(gen), dist_neg_pos(gen), dist01(gen)};
+
+        sample = glm::normalize(sample);
+
+        float scale = dist01(gen);
+        // Bias toward center (quadratic distribution) and offset
+        scale = scale * scale;
+        scale = glm::mix(0.1f, 1.0f, scale);
+        sample *= scale;
+        // Keep in hemisphere
+        sample.z = abs(sample.z);
+
+        kernel.push_back(sample);
+    }
+
+    std::vector<vec3> noise = {};
+    noise.reserve(SSAO_N_ROTATIONS);
+    for (u32 i = 0; i < SSAO_N_ROTATIONS; i++)
+    {
+        vec3 rotation = {dist_neg_pos(gen), dist_neg_pos(gen), 0.0f};
+        noise.push_back(rotation);
+    }
+
+    UploadSession session = begin_upload_session();
+    ssao_kernel_buffer = session.create_buffer(kernel.data(), {
+                                                                  .size = SSAO_N_SAMPLES * sizeof(daxa_f32vec3),
+                                                                  .memory_flags = daxa::MemoryFlagBits::NONE,
+                                                                  .name = "ssao kernel buffer",
+                                                              });
+    ssao_noise_image = session.create_image(noise.data(), SSAO_N_ROTATIONS * sizeof(daxa_f32vec3), {},
+                                            {
+                                                .dimensions = 2,
+                                                .format = daxa::Format::R16G16B16_SFLOAT,
+                                                .size = {.x = SSAO_NOISE_DIM, .y = SSAO_NOISE_DIM, .z = 1},
+                                                .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED,
+                                                .name = "ssao noise image",
+                                            });
+    session.flush();
+
+    ssao_noise_sampler = gpu.device.create_sampler({
+        .magnification_filter = daxa::Filter::NEAREST,
+        .minification_filter = daxa::Filter::NEAREST,
+        .address_mode_u = daxa::SamplerAddressMode::REPEAT,
+        .address_mode_v = daxa::SamplerAddressMode::REPEAT,
+        .name = "ssao noise sampler",
+    });
+}
+
 void Renderer::render(FrameUniforms const & uniforms, Scene const & s)
 {
     daxa::ImageId new_image = gpu.swapchain.acquire_next_image();
@@ -168,30 +277,25 @@ void Renderer::render(FrameUniforms const & uniforms, Scene const & s)
 void Renderer::resize_resources(Window const & window)
 {
     gpu.device.destroy_image(t_depth_image.info().image);
-    t_depth_image.set_image(gpu.device.create_image({
-        .format = daxa::Format::D32_SFLOAT,
-        .size = {.x = window.width, .y = window.height, .z = 1},
-        .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT,
-        .name = "depth image",
-    }));
+    t_depth_image.set_image(gpu.device.create_image(make_depth_info(window)));
     gpu.device.destroy_image(t_draw_image.info().image);
-    t_draw_image.set_image(gpu.device.create_image({
-        .format = daxa::Format::R32G32B32A32_SFLOAT,
-        .size = {.x = window.width, .y = window.height, .z = 1},
-        .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
-                 daxa::ImageUsageFlagBits::SHADER_STORAGE,
-        .name = "draw image",
-    }));
+    t_draw_image.set_image(gpu.device.create_image(make_draw_info(window)));
+    gpu.device.destroy_image(t_ssao_image.info().image);
+    t_ssao_image.set_image(gpu.device.create_image(make_ssao_info(window)));
 }
 
 void Renderer::cleanup() const
 {
     gpu.device.destroy_sampler(default_linear_sampler);
     gpu.device.destroy_sampler(shadow_sampler);
+    gpu.device.destroy_sampler(ssao_noise_sampler);
     gpu.device.destroy_buffer(camera_buffer);
     gpu.device.destroy_buffer(frame_data_buffer);
     gpu.device.destroy_buffer(global_buffer);
+    gpu.device.destroy_buffer(ssao_kernel_buffer);
     gpu.device.destroy_image(t_depth_image.info().image);
     gpu.device.destroy_image(t_shadow_depth_image.info().image);
     gpu.device.destroy_image(t_draw_image.info().image);
+    gpu.device.destroy_image(t_ssao_image.info().image);
+    gpu.device.destroy_image(ssao_noise_image);
 }
