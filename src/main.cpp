@@ -90,27 +90,8 @@ namespace
                 {
                     ImGui::DragFloat3("Position", &light.position.x, 0.05f);
                     ImGui::ColorEdit3("Color", &light.color.x);
-                    ImGui::DragFloat("Linear", &light.linear, 0.001f, 0.001f, 10.0f);
-                    ImGui::DragFloat("Quadratic", &light.quadratic, 0.001f, 0.001f, 20.0f);
-
-                    // Useful presets
-                    if (ImGui::Button("7m Range"))
-                    {
-                        light.linear = 0.7f;
-                        light.quadratic = 1.8f;
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("20m Range"))
-                    {
-                        light.linear = 0.22f;
-                        light.quadratic = 0.20f;
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("50m Range"))
-                    {
-                        light.linear = 0.09f;
-                        light.quadratic = 0.032f;
-                    }
+                    ImGui::DragFloat("Intensity", &light.intensity, 0.1f, 0.0f, 100.0f);
+                    ImGui::DragFloat("radius", &light.radius, 0.01f, 0.01f, 10.0f);
                     ImGui::TreePop();
                 }
                 ImGui::PopID();

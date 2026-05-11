@@ -7,12 +7,12 @@
 struct PointLight
 {
     daxa_f32vec3 position;
-    daxa_f32 linear;
+    daxa_f32 intensity;
     daxa_f32vec3 color;
-    daxa_f32 quadratic;
+    daxa_f32 radius;
 
 #ifdef __cplusplus
-    PointLight() : position(0.0f, 0.0f, 0.0f), linear(0.7f), color(1.0f, 1.0f, 1.0f), quadratic(1.8f) {}
+    PointLight() : position(0.0f, 0.0f, 0.0f), intensity(1.0f), color(1.0f, 1.0f, 1.0f), radius(0.2f) {}
 #endif
 };
 

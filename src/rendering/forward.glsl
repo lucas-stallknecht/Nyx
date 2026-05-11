@@ -92,6 +92,12 @@ vec3 calc_directional_lighting(Surface surface, vec3 view_dir, vec3 light_dir, v
     return brdf * radiance * max(dot(surface.normal, light_dir), 0.0);
 }
 
+float point_light_falloff(float d, float r)
+{
+    float x = clamp(d / r, 0.0, 1.0);
+    return 1.0 - (x * x * (3.0 - 2.0 * x));
+}
+
 vec3 calc_point_lighting(Surface surface, PointLight light, vec3 view_dir) {
     vec3 light_dir = light.position - f_in.world_pos;
     float distance = length(light_dir);
@@ -99,8 +105,9 @@ vec3 calc_point_lighting(Surface surface, PointLight light, vec3 view_dir) {
 
     vec3 brdf = brdf(surface, view_dir, light_dir);
 
-    vec3 radiance = light.color * 1.0;
-    float attenuation = 1.0 / (1.0 + light.linear * distance + (light.quadratic * distance * distance));
+    vec3 radiance = light.color * light.intensity;
+    float attenuation = (1.0 / max(distance * distance, light.radius * light.radius));
+    attenuation *= point_light_falloff(distance, light.radius);
 
     return brdf * attenuation * radiance * max(dot(surface.normal, light_dir), 0.0);
 }
