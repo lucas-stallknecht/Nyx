@@ -1,4 +1,5 @@
 #include "camera.hpp"
+#include <fmt/core.h>
 
 mat4 Camera::get_proj(f32 aspect_ratio) const
 {
@@ -24,7 +25,6 @@ void Camera::rotate(vec2 delta)
 {
     f32 yaw = -delta.x * look_sensitivity;
     f32 pitch = -delta.y * look_sensitivity;
-    pitch = glm::clamp(pitch, -89.0f, 89.0f);
 
     // World up
     glm::quat yaw_quat = glm::angleAxis(yaw, glm::vec3(0.0f, 1.0f, 0.0f));

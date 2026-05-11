@@ -33,7 +33,7 @@ struct Renderer
     daxa::ImageId ssao_noise_image;
     daxa::ExternalTaskImage t_draw_image;
     daxa::ExternalTaskImage t_depth_image;
-    daxa::ExternalTaskImage t_shadow_depth_image;
+    daxa::ExternalTaskImage t_shadow_map;
     daxa::ExternalTaskImage t_ssao_image;
     daxa::TaskGraph loop_task_graph;
 

@@ -10,7 +10,7 @@ DAXA_DECL_PUSH_CONSTANT(ForwardPassPC, push)
 struct VOut {
     vec3 world_pos;
     vec2 uv;
-    vec3 norm;
+    vec3 normal;
     mat3 tbn;
     vec4 light_space_pos;
 };
@@ -24,7 +24,7 @@ void main()
     Vertex vert = deref_i(push.vertex_buffer, gl_VertexIndex);
     GPUGlobals global = deref(push.global_buffer);
     GPUCamera cam = deref(global.camera_buffer);
-    GPULightInfo light_info = deref(global.frame_data_buffer).lights;
+    GPUFrameData frame_data = deref(global.frame_data_buffer);
 
     vec4 world_pos = push.model_matrix * vec4(vert.position, 1.0);
     gl_Position = cam.proj * cam.view * world_pos;
@@ -33,11 +33,11 @@ void main()
     v_out.uv = vert.uv;
     // Make a normal matrix if scales become non-uniform
     mat3 model = mat3(push.model_matrix);
-    v_out.norm = normalize(model * vert.normal);
+    v_out.normal = normalize(model * vert.normal);
     vec3 tangent = normalize(model * vert.tangent.xyz);
-    vec3 bitangent = normalize(model * cross(v_out.norm, tangent) * vert.tangent.w);
-    v_out.tbn = mat3(tangent, bitangent, v_out.norm);
-    v_out.light_space_pos = light_info.dir_light_matrix * vec4(v_out.world_pos, 1.0);
+    vec3 bitangent = normalize(model * cross(v_out.normal, tangent) * vert.tangent.w);
+    v_out.tbn = mat3(tangent, bitangent, v_out.normal);
+    v_out.light_space_pos = frame_data.dir_light_matrix * vec4(v_out.world_pos, 1.0);
 }
 
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
@@ -54,6 +54,9 @@ struct Surface {
     vec3 normal;
     float metallic;
 };
+
+#define FORWARD_DEBUG_VIEW
+#include "debug.glsl"
 
 vec3 brdf(Surface surface, vec3 v, vec3 l) {
     vec3 h = normalize(v + l);
@@ -105,7 +108,7 @@ float calc_shadow(daxa_SamplerId shadow_sampler) {
     vec3 proj_coords = f_in.light_space_pos.xyz / f_in.light_space_pos.w;
 
     vec2 tex_coord = proj_coords.xy * 0.5 + 0.5; // [-1, 1] -> [0, 1]
-    float closest_depth = texture(daxa_sampler2D(push.attachments.shadow_depth_image, shadow_sampler), tex_coord).r;
+    float closest_depth = texture(daxa_sampler2D(push.attachments.shadow_map, shadow_sampler), tex_coord).r;
     float current_depth = proj_coords.z;
 
     return current_depth > closest_depth ? 1.0 : 0.0;
@@ -117,11 +120,10 @@ void main()
     GPUMaterial mat = deref_i(push.material_buffer, push.material_idx);
     GPUCamera cam = deref(global.camera_buffer);
     GPUFrameData frame_data = deref(global.frame_data_buffer);
-    GPULightInfo light_info = frame_data.lights;
 
     Surface surface;
     surface.albedo = mat.base_color;
-    surface.normal = f_in.norm;
+    surface.normal = f_in.normal;
     surface.roughness = mat.roughness;
     surface.metallic = mat.metallic;
 
@@ -149,25 +151,29 @@ void main()
         vec2 ss_uv = gl_FragCoord.xy / imageSize(daxa_image2D(push.attachments.ssao_image));
         ao = texture(daxa_sampler2D(push.attachments.ssao_image, global.default_linear_sampler), ss_uv).r;
     }
-    vec3 color = light_info.ambient_light_intensity * light_info.ambient_light_color * ao * surface.albedo;
+    vec3 color = frame_data.ambient_light_intensity * frame_data.ambient_light_color * ao * surface.albedo;
 
     float shadow = calc_shadow(global.shadow_sampler);
     color += (1.0 - shadow) * calc_directional_lighting(
                 surface,
                 view_dir,
-                light_info.dir_light_direction,
-                light_info.dir_light_color * light_info.dir_light_intensity
+                frame_data.dir_light_direction,
+                frame_data.dir_light_color * frame_data.dir_light_intensity
             );
 
-    for (uint i = 0; i < light_info.num_point_lights; i++) {
+    for (uint i = 0; i < frame_data.num_point_lights; i++) {
         color += calc_point_lighting(
                 surface,
-                light_info.point_lights[i],
+                frame_data.point_lights[i],
                 view_dir
             );
     }
 
     out_color = vec4(color, 1.0);
+
+    vec3 debug_col = get_debug_col(frame_data.debug_view, surface, ao, shadow);
+    if (any(lessThan(debug_col, vec3(0.0)))) return;
+    out_color = vec4(debug_col, 1.0);
 }
 
 #endif

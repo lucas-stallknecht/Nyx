@@ -5,6 +5,7 @@
 #include "camera.hpp"
 #include "renderer.hpp"
 #include "gpu_context.hpp"
+#include "gpu_debug.inl"
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 #include <daxa/utils/task_graph.hpp>
@@ -17,22 +18,15 @@ namespace
     struct AppState
     {
         Camera camera = {};
-        GPULightInfo light_info;
+        GPUFrameData frame_data = {};
         f32 light_distance = 20.0f;
-
         f32 shadow_range = 15.0f;
         f32 shadow_near = 0.1f;
         f32 shadow_far = 50.0f;
-
-        f32 exposure = 1.0f;
-
-        bool ssao_enabled = true;
-        f32 ssao_radius = 0.4f;
-        f32 ssao_bias = 0.001f;
     };
 
     static AppState app_state = {
-        .light_info =
+        .frame_data =
             {
                 .ambient_light_color = {1.0f, 1.0f, 1.0f},
                 .ambient_light_intensity = 0.1f,
@@ -40,6 +34,10 @@ namespace
                 .dir_light_intensity = 3.0f,
                 .dir_light_color = {1.0f, 1.0f, 1.0f},
                 .num_point_lights = 1,
+                .exposure = 1.0f,
+                .ssao_enabled = true,
+                .ssao_radius = 0.3f,
+                .ssao_bias = 0.001f,
             },
     };
 
@@ -49,17 +47,22 @@ namespace
         ImGui::NewFrame();
         ImGui::Begin("Settings");
 
+        ImGui::Combo("Debug View", &app_state.frame_data.debug_view, DEBUG_VIEW_NAMES, IM_ARRAYSIZE(DEBUG_VIEW_NAMES));
+        ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::Spacing();
+
         if (ImGui::CollapsingHeader("Ambient light", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::DragFloat("Intensity#ambient", &app_state.light_info.ambient_light_intensity, 0.01f, 0.0f, 10.0f);
-            ImGui::ColorEdit3("Color#ambient", &app_state.light_info.ambient_light_color.x);
+            ImGui::DragFloat("Intensity#ambient", &app_state.frame_data.ambient_light_intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::ColorEdit3("Color#ambient", &app_state.frame_data.ambient_light_color.x);
         }
 
         if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::DragFloat("Intensity#dir", &app_state.light_info.dir_light_intensity, 0.01f, 0.0f, 10.0f);
-            ImGui::DragFloat3("Direction#dir", &app_state.light_info.dir_light_direction.x, 0.01f);
-            ImGui::ColorEdit3("Color#dir", &app_state.light_info.dir_light_color.x);
+            ImGui::DragFloat("Intensity#dir", &app_state.frame_data.dir_light_intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::DragFloat3("Direction#dir", &app_state.frame_data.dir_light_direction.x, 0.01f);
+            ImGui::ColorEdit3("Color#dir", &app_state.frame_data.dir_light_color.x);
         }
 
         if (ImGui::CollapsingHeader("Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen))
@@ -72,12 +75,12 @@ namespace
 
         if (ImGui::CollapsingHeader("Point lights", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::SliderInt("Count", reinterpret_cast<int *>(&app_state.light_info.num_point_lights), 0,
+            ImGui::SliderInt("Count", reinterpret_cast<int *>(&app_state.frame_data.num_point_lights), 0,
                              MAX_POINT_LIGHTS);
 
-            for (u32 i = 0; i < app_state.light_info.num_point_lights; ++i)
+            for (u32 i = 0; i < app_state.frame_data.num_point_lights; ++i)
             {
-                PointLight & light = app_state.light_info.point_lights[i];
+                PointLight & light = app_state.frame_data.point_lights[i];
 
                 ImGui::PushID(static_cast<int>(i));
 
@@ -114,14 +117,14 @@ namespace
 
         if (ImGui::CollapsingHeader("Post Processing", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::DragFloat("Exposure", &app_state.exposure, 0.001f, 0.001f, 8.0f);
+            ImGui::DragFloat("Exposure", &app_state.frame_data.exposure, 0.001f, 0.001f, 8.0f);
         }
 
         if (ImGui::CollapsingHeader("SSAO", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::Checkbox("Enabled", &app_state.ssao_enabled);
-            ImGui::DragFloat("Radius", &app_state.ssao_radius, 0.001f, 0.001f, 1.0f);
-            ImGui::DragFloat("Bias", &app_state.ssao_bias, 0.001f, 0.001f, 0.1f);
+            ImGui::Checkbox("Enabled", std::bit_cast<bool *>(&app_state.frame_data.ssao_enabled));
+            ImGui::DragFloat("Radius", &app_state.frame_data.ssao_radius, 0.001f, 0.001f, 1.0f);
+            ImGui::DragFloat("Bias", &app_state.frame_data.ssao_bias, 0.001f, 0.001f, 0.1f);
         }
 
         ImGui::End();
@@ -161,8 +164,8 @@ namespace
     {
         f32 const aspect = static_cast<f32>(window.width) / static_cast<f32>(window.height);
         vec3 const light_dir =
-            glm::normalize(vec3(app_state.light_info.dir_light_direction.x, app_state.light_info.dir_light_direction.y,
-                                app_state.light_info.dir_light_direction.z));
+            glm::normalize(vec3(app_state.frame_data.dir_light_direction.x, app_state.frame_data.dir_light_direction.y,
+                                app_state.frame_data.dir_light_direction.z));
         mat4 const light_proj = glm::ortho(-app_state.shadow_range, app_state.shadow_range, -app_state.shadow_range,
                                            app_state.shadow_range, app_state.shadow_near, app_state.shadow_far);
         mat4 const light_view = glm::lookAt(app_state.light_distance * light_dir, {}, {0.0f, 1.0f, 0.0f});
@@ -177,13 +180,9 @@ namespace
             .inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_view)),
             .position = std::bit_cast<daxa_f32vec3>(app_state.camera.position),
         };
-        frame.frame_data.lights = app_state.light_info;
-        frame.frame_data.lights.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
-        frame.frame_data.lights.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
-        frame.frame_data.exposure = app_state.exposure;
-        frame.frame_data.ssao_enabled = app_state.ssao_enabled;
-        frame.frame_data.ssao_bias = app_state.ssao_bias;
-        frame.frame_data.ssao_radius = app_state.ssao_radius;
+        frame.frame_data = app_state.frame_data;
+        frame.frame_data.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
+        frame.frame_data.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
         return frame;
     }
 

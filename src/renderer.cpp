@@ -91,14 +91,14 @@ void Renderer::init_resources(Window const & window)
         .image = gpu.device.create_image(make_depth_info(window)),
         .name = "task depth image",
     });
-    t_shadow_depth_image = daxa::ExternalTaskImage({
+    t_shadow_map = daxa::ExternalTaskImage({
         .image = gpu.device.create_image({
             .format = daxa::Format::D32_SFLOAT,
             .size = {.x = SHADOW_MAP_SIZE, .y = SHADOW_MAP_SIZE, .z = 1},
             .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED,
-            .name = "shadow depth image",
+            .name = "shadow map",
         }),
-        .name = "task shadow depth image",
+        .name = "task shadow map",
     });
     t_ssao_image = daxa::ExternalTaskImage({
         .image = gpu.device.create_image(make_ssao_info(window)),
@@ -115,9 +115,9 @@ void Renderer::init_resources(Window const & window)
         .name = "camera buffer",
     });
     frame_data_buffer = gpu.device.create_buffer({
-        .size = sizeof(GPULightInfo),
+        .size = sizeof(GPUFrameData),
         .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
-        .name = "light buffer",
+        .name = "frame data buffer",
     });
     auto * buffer_ptr = gpu.device.buffer_host_address_as<GPUGlobals>(global_buffer).value();
     *buffer_ptr = {
@@ -139,7 +139,7 @@ void Renderer::init_task_graphs()
     loop_task_graph.register_image(gpu.t_swapchain_image);
     loop_task_graph.register_image(t_draw_image);
     loop_task_graph.register_image(t_depth_image);
-    loop_task_graph.register_image(t_shadow_depth_image);
+    loop_task_graph.register_image(t_shadow_map);
     loop_task_graph.register_image(t_ssao_image);
 
     // Since this->scene value changes every frame, we must pass a pointer to it
@@ -155,16 +155,16 @@ void Renderer::init_task_graphs()
                                  })
                                  .executes(compute_ssao_callback, ssao_pipeline.get(), global_buffer,
                                            ssao_kernel_buffer, ssao_noise_image, ssao_noise_sampler));
-    loop_task_graph.add_task(daxa::RasterTask("draw shadow depth")
-                                 .depth_stencil_attachment.writes(t_shadow_depth_image.view())
-                                 .executes(shadow_mapping_callback, shadow_pipeline.get(), &scene,
-                                           t_shadow_depth_image.view(), global_buffer));
+    loop_task_graph.add_task(
+        daxa::RasterTask("draw shadow depth")
+            .depth_stencil_attachment.writes(t_shadow_map.view())
+            .executes(shadow_mapping_callback, shadow_pipeline.get(), &scene, t_shadow_map.view(), global_buffer));
     loop_task_graph.add_task(daxa::RasterTask("draw forward")
                                  .uses_head<ForwardPassHead::Info>()
                                  .head_views({
                                      .color_target = t_draw_image.view(),
                                      .depth_target = t_depth_image.view(),
-                                     .shadow_depth_image = t_shadow_depth_image.view(),
+                                     .shadow_map = t_shadow_map.view(),
                                      .ssao_image = t_ssao_image.view(),
                                  })
                                  .executes(forward_callback, forward_pipeline.get(), &scene, global_buffer));
@@ -294,7 +294,7 @@ void Renderer::cleanup() const
     gpu.device.destroy_buffer(global_buffer);
     gpu.device.destroy_buffer(ssao_kernel_buffer);
     gpu.device.destroy_image(t_depth_image.info().image);
-    gpu.device.destroy_image(t_shadow_depth_image.info().image);
+    gpu.device.destroy_image(t_shadow_map.info().image);
     gpu.device.destroy_image(t_draw_image.info().image);
     gpu.device.destroy_image(t_ssao_image.info().image);
     gpu.device.destroy_image(ssao_noise_image);
