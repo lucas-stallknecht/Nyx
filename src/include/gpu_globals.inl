@@ -29,6 +29,8 @@ struct GPUFrameData
     daxa_u32 num_point_lights;
     PointLight point_lights[MAX_POINT_LIGHTS];
 
+    daxa_b32 pcf_enabled;
+
     daxa_f32 exposure;
 
     daxa_b32 ssao_enabled;

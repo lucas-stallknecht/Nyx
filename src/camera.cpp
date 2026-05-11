@@ -3,7 +3,7 @@
 
 mat4 Camera::get_proj(f32 aspect_ratio) const
 {
-    mat4 proj = glm::perspective(glm::radians(fov), aspect_ratio, near, plane);
+    mat4 proj = glm::perspective(glm::radians(fov), aspect_ratio, near, far);
     proj[1][1] *= -1.0f; // Flip for Vulkan clip space
     return proj;
 }

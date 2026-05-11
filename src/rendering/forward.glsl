@@ -3,6 +3,7 @@
 #extension GL_EXT_debug_printf : enable
 
 #include "forward.inl"
+#include "shadow_mapping.inl"
 #include "brdf.glsl"
 
 DAXA_DECL_PUSH_CONSTANT(ForwardPassPC, push)
@@ -104,14 +105,30 @@ vec3 calc_point_lighting(Surface surface, PointLight light, vec3 view_dir) {
     return brdf * attenuation * radiance * max(dot(surface.normal, light_dir), 0.0);
 }
 
-float calc_shadow(daxa_SamplerId shadow_sampler) {
+float calc_shadow(daxa_SamplerId shadow_sampler, bool pcf_enabled) {
     vec3 proj_coords = f_in.light_space_pos.xyz / f_in.light_space_pos.w;
-
-    vec2 tex_coord = proj_coords.xy * 0.5 + 0.5; // [-1, 1] -> [0, 1]
-    float closest_depth = texture(daxa_sampler2D(push.attachments.shadow_map, shadow_sampler), tex_coord).r;
     float current_depth = proj_coords.z;
+    vec2 tex_coords = proj_coords.xy * 0.5 + 0.5; // [-1, 1] -> [0, 1]
 
-    return current_depth > closest_depth ? 1.0 : 0.0;
+    if (!pcf_enabled) {
+        float closest_depth = texture(daxa_sampler2D(push.attachments.shadow_map, shadow_sampler), tex_coords).r;
+        return float(current_depth > closest_depth);
+    }
+
+    vec2 texel_size = vec2(1.0) / float(SHADOW_MAP_SIZE);
+    float shadow = 0.0;
+    for (int x = -1; x <= 1; x++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            vec2 offset = vec2(x, y) * texel_size;
+            float closest_depth = texture(daxa_sampler2D(push.attachments.shadow_map, shadow_sampler), tex_coords + offset).r;
+            shadow += float(current_depth > closest_depth);
+        }
+    }
+    shadow /= 9.0;
+
+    return max(shadow, 0.0);
 }
 
 void main()
@@ -153,7 +170,7 @@ void main()
     }
     vec3 color = frame_data.ambient_light_intensity * frame_data.ambient_light_color * ao * surface.albedo;
 
-    float shadow = calc_shadow(global.shadow_sampler);
+    float shadow = calc_shadow(global.shadow_sampler, frame_data.pcf_enabled);
     color += (1.0 - shadow) * calc_directional_lighting(
                 surface,
                 view_dir,

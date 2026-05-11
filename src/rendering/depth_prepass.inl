@@ -28,7 +28,11 @@ inline daxa::RasterPipelineCompileInfo2 depth_prepass_pipeline_info()
                 .depth_attachment_format = daxa::Format::D32_SFLOAT,
                 .enable_depth_write = true,
             },
-        .raster = {.face_culling = daxa::FaceCullFlagBits::FRONT_BIT},
+        .raster =
+            {
+                .face_culling = daxa::FaceCullFlagBits::BACK_BIT,
+                .front_face_winding = daxa::FrontFaceWinding::COUNTER_CLOCKWISE,
+            },
         .push_constant_size = sizeof(DepthPrepassPC),
         .name = "depth prepass rendering pipeline",
     };

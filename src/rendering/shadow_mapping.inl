@@ -30,7 +30,8 @@ inline daxa::RasterPipelineCompileInfo2 shadow_mapping_pipeline_info()
             },
         .raster =
             {
-                .face_culling = daxa::FaceCullFlagBits::BACK_BIT,
+                .face_culling = daxa::FaceCullFlagBits::FRONT_BIT,
+                .front_face_winding = daxa::FrontFaceWinding::COUNTER_CLOCKWISE,
                 .depth_bias_enable = true,
             },
         .push_constant_size = sizeof(ShadowPassPC),
@@ -52,7 +53,7 @@ inline void shadow_mapping_callback(daxa::TaskInterface ti, daxa::RasterPipeline
                                              .render_area = {.width = SHADOW_MAP_SIZE, .height = SHADOW_MAP_SIZE},
                                          });
     cr.set_pipeline(*pipeline);
-    cr.set_depth_bias({.constant_factor = -0.001f, .slope_factor = 1.75f});
+    cr.set_depth_bias({.constant_factor = -0.0025f, .slope_factor = 1.75f});
 
     ShadowPassPC push = {
         .global_buffer = ti.device.device_address(global_buffer).value(),

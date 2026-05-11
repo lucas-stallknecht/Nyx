@@ -34,6 +34,7 @@ namespace
                 .dir_light_intensity = 3.0f,
                 .dir_light_color = {1.0f, 1.0f, 1.0f},
                 .num_point_lights = 1,
+                .pcf_enabled = true,
                 .exposure = 1.0f,
                 .ssao_enabled = true,
                 .ssao_radius = 0.3f,
@@ -54,19 +55,20 @@ namespace
 
         if (ImGui::CollapsingHeader("Ambient light", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::DragFloat("Intensity#ambient", &app_state.frame_data.ambient_light_intensity, 0.01f, 0.0f, 10.0f);
-            ImGui::ColorEdit3("Color#ambient", &app_state.frame_data.ambient_light_color.x);
+            ImGui::DragFloat("Intensity###ambient", &app_state.frame_data.ambient_light_intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::ColorEdit3("Color###ambient", &app_state.frame_data.ambient_light_color.x);
         }
 
         if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::DragFloat("Intensity#dir", &app_state.frame_data.dir_light_intensity, 0.01f, 0.0f, 10.0f);
-            ImGui::DragFloat3("Direction#dir", &app_state.frame_data.dir_light_direction.x, 0.01f);
-            ImGui::ColorEdit3("Color#dir", &app_state.frame_data.dir_light_color.x);
+            ImGui::DragFloat("Intensity###dir", &app_state.frame_data.dir_light_intensity, 0.01f, 0.0f, 10.0f);
+            ImGui::DragFloat3("Direction###dir", &app_state.frame_data.dir_light_direction.x, 0.01f, -1.0f, 1.0f);
+            ImGui::ColorEdit3("Color###dir", &app_state.frame_data.dir_light_color.x);
         }
 
         if (ImGui::CollapsingHeader("Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            ImGui::Checkbox("Enabled", std::bit_cast<bool *>(&app_state.frame_data.pcf_enabled));
             ImGui::DragFloat("Light Distance", &app_state.light_distance, 0.1f, 1.0f, 200.0f);
             ImGui::DragFloat("Shadow Range", &app_state.shadow_range, 0.1f, 1.0f, 200.0f);
             ImGui::DragFloat("Shadow Near", &app_state.shadow_near, 0.01f, 0.001f, 20.0f);
@@ -122,9 +124,9 @@ namespace
 
         if (ImGui::CollapsingHeader("SSAO", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::Checkbox("Enabled", std::bit_cast<bool *>(&app_state.frame_data.ssao_enabled));
-            ImGui::DragFloat("Radius", &app_state.frame_data.ssao_radius, 0.001f, 0.001f, 1.0f);
-            ImGui::DragFloat("Bias", &app_state.frame_data.ssao_bias, 0.001f, 0.001f, 0.1f);
+            ImGui::Checkbox("Enabled###SSAO", std::bit_cast<bool *>(&app_state.frame_data.ssao_enabled));
+            ImGui::DragFloat("Radius###SSAO", &app_state.frame_data.ssao_radius, 0.001f, 0.001f, 1.0f);
+            ImGui::DragFloat("Bias###SSAO", &app_state.frame_data.ssao_bias, 0.001f, 0.001f, 0.1f);
         }
 
         ImGui::End();
