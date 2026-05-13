@@ -59,7 +59,8 @@ void Renderer::init(Window const & window)
     depth_prepass_pipeline = gpu.pipeline_manager.add_raster_pipeline2(depth_prepass_pipeline_info()).value();
     shadow_pipeline = gpu.pipeline_manager.add_raster_pipeline2(shadow_mapping_pipeline_info()).value();
     ssao_pipeline = gpu.pipeline_manager.add_compute_pipeline2(compute_ssao_pipeline_info()).value();
-    forward_pipeline = gpu.pipeline_manager.add_raster_pipeline2(forward_pipeline_info()).value();
+    opaque_pipeline = gpu.pipeline_manager.add_raster_pipeline2(opaque_pipeline_info()).value();
+    transparent_pipeline = gpu.pipeline_manager.add_raster_pipeline2(transparent_pipeline_info()).value();
     draw_swapchain_pipeline = gpu.pipeline_manager.add_compute_pipeline2(draw_swapchain_pipeline_info()).value();
 
     fmt::println("[Renderer] Shaders ready");
@@ -164,15 +165,16 @@ void Renderer::init_task_graphs()
         daxa::RasterTask("draw shadow depth")
             .depth_stencil_attachment.writes(t_shadow_map.view())
             .executes(shadow_mapping_callback, shadow_pipeline.get(), &scene, t_shadow_map.view(), global_buffer));
-    loop_task_graph.add_task(daxa::RasterTask("draw forward")
-                                 .uses_head<ForwardPassHead::Info>()
-                                 .head_views({
-                                     .color_target = t_draw_image.view(),
-                                     .depth_target = t_depth_image.view(),
-                                     .shadow_map = t_shadow_map.view(),
-                                     .ssao_image = t_ssao_image.view(),
-                                 })
-                                 .executes(forward_callback, forward_pipeline.get(), &scene, global_buffer));
+    loop_task_graph.add_task(
+        daxa::RasterTask("draw forward")
+            .uses_head<ForwardPassHead::Info>()
+            .head_views({
+                .color_target = t_draw_image.view(),
+                .depth_target = t_depth_image.view(),
+                .shadow_map = t_shadow_map.view(),
+                .ssao_image = t_ssao_image.view(),
+            })
+            .executes(forward_callback, opaque_pipeline.get(), transparent_pipeline.get(), &scene, global_buffer));
     loop_task_graph.add_task(daxa::ComputeTask("draw to swapchain")
                                  .uses_head<DrawSwapchainHead::Info>()
                                  .head_views({

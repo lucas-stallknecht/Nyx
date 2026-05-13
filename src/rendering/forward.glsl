@@ -146,17 +146,20 @@ void main()
     GPUFrameData frame_data = deref(global.frame_data_buffer);
 
     Surface surface;
-    surface.albedo = mat.base_color;
+    surface.albedo = mat.base_color.rgb;
     surface.normal = f_in.normal;
     surface.roughness = mat.roughness;
     surface.metallic = mat.metallic;
+    float alpha = mat.base_color.a;
 
     if (mat.base_color_texture.value != 0) {
         vec4 tex_color = texture(daxa_sampler2D(mat.base_color_texture, global.default_linear_sampler), f_in.uv);
-        if (tex_color.a < 0.5)
+        surface.albedo.rgb *= tex_color.rgb;
+        alpha *= tex_color.a;
+        if (alpha < mat.alpha_cutoff)
             discard;
-        surface.albedo.rgb = tex_color.rgb;
     }
+
     if (mat.normal_texture.value != 0) {
         vec3 tex_normal = texture(daxa_sampler2D(mat.normal_texture, global.default_linear_sampler), f_in.uv).rgb;
         tex_normal = tex_normal * 2.0 - 1.0; // [0, 1] to [-1, 1]
@@ -193,11 +196,11 @@ void main()
             );
     }
 
-    out_color = vec4(color, 1.0);
+    out_color = vec4(color, alpha);
 
     vec3 debug_col = get_debug_col(frame_data.debug_view, surface, ao, shadow);
     if (any(lessThan(debug_col, vec3(0.0)))) return;
-    out_color = vec4(debug_col, 1.0);
+    out_color = vec4(debug_col, alpha);
 }
 
 #endif

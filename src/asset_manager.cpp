@@ -120,7 +120,7 @@ std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view
     UploadSession session = begin_upload_session();
 
     // Images
-    utils::gltf::BuildImagesResult image_result = utils::gltf::build_images(asset.get());
+    utils::gltf::BuildImagesResult image_result = utils::gltf::build_images(asset.get(), file_path);
     model.images.resize(image_result.images.size());
     for (usize i = 0; i < image_result.images.size(); ++i)
     {
@@ -163,7 +163,6 @@ std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view
 
     model.nodes = utils::gltf::build_nodes(asset.get());
 
-    // One submit+wait for the entire model — regardless of mesh/texture count.
     session.flush();
 
     models.emplace(hash, std::move(model));

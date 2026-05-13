@@ -14,7 +14,7 @@ void GPUContext::init(Window const & window)
     fmt::println("[GPU] Using: {}", reinterpret_cast<char const *>(device.properties().device_name));
     swapchain = device.create_swapchain({
         .native_window_info = window.get_native_window_info(),
-        .surface_format = {.format = daxa::Format::B8G8R8A8_SRGB, .color_space = daxa::ColorSpace::SRGB_NONLINEAR},
+        .surface_format = {.format = daxa::Format::B8G8R8A8_UNORM, .color_space = daxa::ColorSpace::SRGB_NONLINEAR},
         .present_mode = daxa::PresentMode::FIFO,
         .image_usage = daxa::ImageUsageFlagBits::TRANSFER_DST | daxa::ImageUsageFlagBits::SHADER_STORAGE,
     });

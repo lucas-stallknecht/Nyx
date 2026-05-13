@@ -22,7 +22,7 @@ DAXA_DECL_BUFFER_PTR(GPUCamera);
 
 struct GPUMaterial
 {
-    daxa_f32vec3 base_color;
+    daxa_f32vec4 base_color;
     daxa_f32 metallic;
     daxa_f32 roughness;
     daxa_f32 alpha_cutoff; // >0 = MASK, 0 = OPAQUE/BLEND (handled by pipeline)

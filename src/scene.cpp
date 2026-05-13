@@ -3,11 +3,24 @@
 #include "gpu_context.hpp"
 #include <bit>
 #include <glm/glm.hpp>
+#include <fmt/core.h>
 
 void Scene::clear()
 {
     opaque_draws.clear();
     transparent_draws.clear();
+}
+
+void Scene::update(Camera const & camera)
+{
+    for (auto & draw : transparent_draws)
+    {
+        draw.distance_to_camera = glm::length(draw.world_position - camera.position);
+    }
+
+    std::sort(transparent_draws.begin(), transparent_draws.end(),
+              [](TransparentDrawCall const & a, TransparentDrawCall const & b)
+              { return a.distance_to_camera > b.distance_to_camera; });
 }
 
 void Scene::add_model(Model const & model)
@@ -35,12 +48,12 @@ void Scene::add_model(Model const & model)
 
         Mesh const & mesh = model.meshes[static_cast<usize>(node.mesh_idx)];
         mat4 const & transform = world_transforms.back();
-        daxa::DeviceAddress const vb_addr = gpu.device.device_address(mesh.vertex_buffer).value();
-        daxa::DeviceAddress const mb_addr = gpu.device.device_address(model.material_buffer).value();
+        daxa::DeviceAddress vb_addr = gpu.device.device_address(mesh.vertex_buffer).value();
+        daxa::DeviceAddress mb_addr = gpu.device.device_address(model.material_buffer).value();
 
         for (auto const & sub : mesh.sub_meshes)
         {
-            DrawCall dc = {
+            DrawCall base_draw = {
                 .vertex_buffer = vb_addr,
                 .index_buffer = mesh.index_buffer,
                 .material_buffer = mb_addr,
@@ -50,9 +63,18 @@ void Scene::add_model(Model const & model)
                 .material_idx = sub.material_idx,
             };
 
-            bool const transparent =
+            bool transparent =
                 sub.material_idx < model.material_transparent.size() && model.material_transparent[sub.material_idx];
-            (transparent ? transparent_draws : opaque_draws).push_back(dc);
+
+            if (transparent)
+            {
+                auto transparent_draw_call = static_cast<TransparentDrawCall>(base_draw);
+                transparent_draw_call.world_position = vec3(transform[3]);
+                transparent_draws.push_back(transparent_draw_call);
+
+                continue;
+            }
+            opaque_draws.push_back(base_draw);
         }
     }
 }

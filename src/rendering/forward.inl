@@ -27,8 +27,9 @@ struct ForwardPassPC
 #include "../scene.hpp"
 #include <daxa/utils/pipeline_manager.hpp>
 #include <daxa/utils/task_graph.hpp>
+#include <fmt/core.h>
 
-inline daxa::RasterPipelineCompileInfo2 forward_pipeline_info()
+inline daxa::RasterPipelineCompileInfo2 opaque_pipeline_info()
 {
     return {
         .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/forward.glsl"}},
@@ -45,11 +46,32 @@ inline daxa::RasterPipelineCompileInfo2 forward_pipeline_info()
                 .front_face_winding = daxa::FrontFaceWinding::COUNTER_CLOCKWISE,
             },
         .push_constant_size = sizeof(ForwardPassPC),
-        .name = "forward rendering pipeline",
+        .name = "opaque rendering pipeline",
     };
 }
 
-inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const * pipeline, Scene const ** scene,
+inline daxa::RasterPipelineCompileInfo2 transparent_pipeline_info()
+{
+    daxa::RasterPipelineCompileInfo2 ci = opaque_pipeline_info();
+    ci.depth_test.value().enable_depth_write = false;
+    ci.color_attachments[0].blend = {
+        .src_color_blend_factor = daxa::BlendFactor::SRC_ALPHA,
+        .dst_color_blend_factor = daxa::BlendFactor::ONE_MINUS_SRC_ALPHA,
+        .color_blend_op = daxa::BlendOp::ADD,
+        .src_alpha_blend_factor = daxa::BlendFactor::ONE,
+        .dst_alpha_blend_factor = daxa::BlendFactor::ZERO,
+        .alpha_blend_op = daxa::BlendOp::ADD,
+    };
+    ci.raster = {
+        .face_culling = daxa::FaceCullFlagBits::NONE,
+    };
+    ci.name = "transparent rendering pipeline";
+
+    return ci;
+}
+
+inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const * opaque_pipeline,
+                             daxa::RasterPipeline const * transparent_pipeline, Scene const ** scene,
                              daxa::BufferId global_buffer)
 {
     auto const & AT = ForwardPassHead::Info::AT;
@@ -73,14 +95,26 @@ inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
                     },
                 .render_area = {.width = size.x, .height = size.y},
             });
-    cr.set_pipeline(*pipeline);
 
     ForwardPassPC push = {
         .global_buffer = gpu.device.device_address(global_buffer).value(),
         .attachments = ti.attachment_shader_blob,
     };
 
+    cr.set_pipeline(*opaque_pipeline);
     for (auto const & draw : (*scene)->opaque_draws)
+    {
+        cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
+        push.model_matrix = draw.transform;
+        push.vertex_buffer = draw.vertex_buffer;
+        push.material_buffer = draw.material_buffer;
+        push.material_idx = draw.material_idx;
+        cr.push_constant(push);
+        cr.draw_indexed({.index_count = draw.index_count, .first_index = draw.first_index});
+    }
+
+    cr.set_pipeline(*transparent_pipeline);
+    for (auto const & draw : (*scene)->transparent_draws)
     {
         cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
         push.model_matrix = draw.transform;

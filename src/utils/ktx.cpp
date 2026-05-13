@@ -103,7 +103,7 @@ namespace utils::ktx
 
         if (result != KTX_SUCCESS)
         {
-            return std::unexpected(fmt::format("Failed to load KTX texture: {}", ktxErrorString(result)));
+            return std::unexpected(fmt::format("Failed to load KTX texture: {} {}", filename, ktxErrorString(result)));
         }
         return ktx_to_image_data_impl(texture);
     }

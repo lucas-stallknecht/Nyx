@@ -1,6 +1,7 @@
 #pragma once
 
 #include "include/model.hpp"
+#include "camera.hpp"
 #include <daxa/daxa.hpp>
 #include <vector>
 
@@ -15,11 +16,18 @@ struct DrawCall
     u32 material_idx = 0;
 };
 
+struct TransparentDrawCall : DrawCall
+{
+    vec3 world_position = {};
+    f32 distance_to_camera = 0.0f;
+};
+
 struct Scene
 {
     std::vector<DrawCall> opaque_draws = {};
-    std::vector<DrawCall> transparent_draws = {};
+    std::vector<TransparentDrawCall> transparent_draws = {};
 
+    void update(Camera const & camera);
     void clear();
     void add_model(Model const & model);
 };

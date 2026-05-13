@@ -42,12 +42,14 @@ namespace
             },
     };
 
-    void update_ui()
+    void update_ui(f32 dt)
     {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         ImGui::Begin("Settings");
-
+        ImGui::Text("%.1f ms/frame (%.1f FPS)", static_cast<double>(1000.0f * dt), static_cast<double>(1.0f / dt));
+        ImGui::Separator();
+        ImGui::Spacing();
         ImGui::Combo("Debug View", &app_state.frame_data.debug_view, DEBUG_VIEW_NAMES, IM_ARRAYSIZE(DEBUG_VIEW_NAMES));
         ImGui::Spacing();
         ImGui::Spacing();
@@ -186,20 +188,27 @@ int main()
     }
     gpu.init(window);
 
-    auto model_result = asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb");
-    if (!model_result)
+    Scene scene = {};
+    std::vector<std::string> model_names = {
+        // "models/super_sponza/sponza-ktx.gltf",
+        // "models/super_sponza/sponza_curtains-ktx.gltf",
+        "models/sponza-ktx.glb",
+    };
+    for (auto const & name : model_names)
     {
-        fmt::println("[App] {}", model_result.error().message);
-        gpu.device.wait_idle();
-        asset_manager.cleanup();
-        return 1;
+        auto model_result = asset_manager.load_model(std::string(ASSETS_DIR) + name);
+        if (!model_result)
+        {
+            fmt::println("[App] {}", model_result.error().message);
+            gpu.device.wait_idle();
+            asset_manager.cleanup();
+            return 1;
+        }
+        scene.add_model(*(model_result.value()));
     }
-    Model * model = *model_result;
 
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForVulkan(window.glfw_window_ptr, true);
-
-    Scene scene = {};
 
     Renderer renderer = {};
     renderer.init(window);
@@ -231,17 +240,16 @@ int main()
         ImGuiIO & io = ImGui::GetIO();
         f32 dt = io.DeltaTime;
         handle_inputs(window, dt);
-        update_ui();
+        update_ui(dt);
 
-        scene.clear();
-        scene.add_model(*model);
-
+        scene.update(app_state.camera);
         renderer.render(build_frame_uniforms(window), scene);
 
         gpu.device.collect_garbage();
     }
 
     fmt::println("[App] Shutting down");
+    scene.clear();
     gpu.device.wait_idle();
     ImGui_ImplGlfw_Shutdown();
     renderer.cleanup();

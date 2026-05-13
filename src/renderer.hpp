@@ -20,7 +20,8 @@ struct Renderer
     std::shared_ptr<daxa::RasterPipeline> depth_prepass_pipeline;
     std::shared_ptr<daxa::RasterPipeline> shadow_pipeline;
     std::shared_ptr<daxa::ComputePipeline> ssao_pipeline;
-    std::shared_ptr<daxa::RasterPipeline> forward_pipeline;
+    std::shared_ptr<daxa::RasterPipeline> opaque_pipeline;
+    std::shared_ptr<daxa::RasterPipeline> transparent_pipeline;
     std::shared_ptr<daxa::ComputePipeline> draw_swapchain_pipeline;
     daxa::SamplerId default_linear_sampler;
     daxa::SamplerId shadow_sampler;

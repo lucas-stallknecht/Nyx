@@ -165,7 +165,7 @@ namespace utils::gltf
         return out;
     }
 
-    BuildImagesResult build_images(fastgltf::Asset & asset)
+    BuildImagesResult build_images(fastgltf::Asset & asset, std::filesystem::path const & gltf_path)
     {
         usize const count = asset.images.size();
         BuildImagesResult out = {};
@@ -179,30 +179,31 @@ namespace utils::gltf
             fastgltf::Image & gltf_image = asset.images[i];
             futures.push_back(std::async(
                 std::launch::async,
-                [&gltf_image, &asset]() -> ImageData
+                [&gltf_image, &asset, &gltf_path]() -> ImageData
                 {
                     ImageData result = {};
                     std::visit(
-                        fastgltf::visitor{[](auto &) {},
-                                          [&](fastgltf::sources::URI & uri)
-                                          {
-                                              auto img = utils::ktx::create_from_file(uri.uri.c_str());
-                                              if (img)
-                                              {
-                                                  result = std::move(*img);
-                                              }
-                                              else
-                                              {
-                                                  fmt::println("{}: {}", gltf_image.name, img.error());
-                                              }
-                                          },
-                                          [&](fastgltf::sources::BufferView & view)
-                                          {
-                                              fastgltf::BufferView & bv = asset.bufferViews[view.bufferViewIndex];
-                                              fastgltf::Buffer & buf = asset.buffers[bv.bufferIndex];
-                                              std::visit(
-                                                  fastgltf::visitor{
-                                                      [](auto const &) {},
+                        fastgltf::visitor{
+                            [](auto &) {},
+                            [&](fastgltf::sources::URI & uri)
+                            {
+                                std::filesystem::path image_path = gltf_path.parent_path().append(uri.uri.path());
+                                auto img = utils::ktx::create_from_file(image_path.string().c_str());
+                                if (img)
+                                {
+                                    result = std::move(*img);
+                                }
+                                else
+                                {
+                                    fmt::println("{}: {}", gltf_image.name, img.error());
+                                }
+                            },
+                            [&](fastgltf::sources::BufferView & view)
+                            {
+                                fastgltf::BufferView & bv = asset.bufferViews[view.bufferViewIndex];
+                                fastgltf::Buffer & buf = asset.buffers[bv.bufferIndex];
+                                std::visit(
+                                    fastgltf::visitor{[](auto const &) {},
                                                       [&](fastgltf::sources::Array & array)
                                                       {
                                                           auto const * bytes = reinterpret_cast<ktx_uint8_t const *>(
@@ -218,8 +219,8 @@ namespace utils::gltf
                                                               fmt::println("{}: {}", gltf_image.name, img.error());
                                                           }
                                                       }},
-                                                  buf.data);
-                                          }},
+                                    buf.data);
+                            }},
                         gltf_image.data);
                     return result;
                 }));
@@ -263,7 +264,7 @@ namespace utils::gltf
         {
             auto & col = gltf_mat.pbrData.baseColorFactor;
             GPUMaterial mat = {};
-            mat.base_color = {col.x(), col.y(), col.z()};
+            mat.base_color = {col.x(), col.y(), col.z(), col.w()};
             mat.metallic = gltf_mat.pbrData.metallicFactor;
             mat.roughness = gltf_mat.pbrData.roughnessFactor;
             mat.alpha_cutoff = gltf_mat.alphaMode == fastgltf::AlphaMode::Mask ? gltf_mat.alphaCutoff : 0.0f;

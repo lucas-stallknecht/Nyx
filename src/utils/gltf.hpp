@@ -14,7 +14,7 @@ namespace utils::gltf
     };
 
     std::vector<MeshData> build_meshes(fastgltf::Asset /* const */ & asset);
-    BuildImagesResult build_images(fastgltf::Asset /* const */ & asset);
+    BuildImagesResult build_images(fastgltf::Asset /* const */ & asset, std::filesystem::path const & gltf_path);
     std::vector<GPUMaterial> build_materials(fastgltf::Asset & asset, LocalImageCache const & image_cache,
                                              std::vector<daxa::ImageId> const & images,
                                              std::vector<bool> & out_transparent);
