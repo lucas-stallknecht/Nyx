@@ -1,7 +1,5 @@
 #include <daxa/daxa.inl>
 
-#extension GL_EXT_debug_printf : enable
-
 #include "draw_swapchain.inl"
 
 DAXA_DECL_PUSH_CONSTANT(DrawSwapchainPC, push)
@@ -42,7 +40,7 @@ void main()
     vec3 out_col = hdr_col * frame_data.exposure;
     out_col = ACES_film(out_col);
     // Gamma correction
-    out_col.rgb = pow(out_col, vec3(1.0 / 2.2));
+    out_col = linear_to_srgb(out_col);
 
     imageStore(daxa_image2D(push.attachments.swapchain_image), tex_coords, vec4(out_col, 1.0));
 }

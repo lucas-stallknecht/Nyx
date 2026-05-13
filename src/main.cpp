@@ -188,6 +188,12 @@ int main()
     }
     gpu.init(window);
 
+    ImGui::CreateContext();
+    ImGui_ImplGlfw_InitForVulkan(window.glfw_window_ptr, true);
+
+    Renderer renderer = {};
+    renderer.init(window);
+
     Scene scene = {};
     std::vector<std::string> model_names = {
         // "models/super_sponza/sponza-ktx.gltf",
@@ -206,12 +212,6 @@ int main()
         }
         scene.add_model(*(model_result.value()));
     }
-
-    ImGui::CreateContext();
-    ImGui_ImplGlfw_InitForVulkan(window.glfw_window_ptr, true);
-
-    Renderer renderer = {};
-    renderer.init(window);
 
     while (!window.should_close())
     {

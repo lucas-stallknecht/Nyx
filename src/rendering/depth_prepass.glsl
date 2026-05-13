@@ -1,7 +1,5 @@
 #include <daxa/daxa.inl>
 
-#extension GL_EXT_debug_printf : enable
-
 #include "depth_prepass.inl"
 
 DAXA_DECL_PUSH_CONSTANT(DepthPrepassPC, push)

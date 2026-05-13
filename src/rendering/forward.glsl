@@ -1,7 +1,5 @@
 #include <daxa/daxa.inl>
 
-#extension GL_EXT_debug_printf : enable
-
 #include "forward.inl"
 #include "shadow_mapping.inl"
 #include "brdf.glsl"
@@ -159,7 +157,6 @@ void main()
         if (alpha < mat.alpha_cutoff)
             discard;
     }
-
     if (mat.normal_texture.value != 0) {
         vec3 tex_normal = texture(daxa_sampler2D(mat.normal_texture, global.default_linear_sampler), f_in.uv).rgb;
         tex_normal = tex_normal * 2.0 - 1.0; // [0, 1] to [-1, 1]

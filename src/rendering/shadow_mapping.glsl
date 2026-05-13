@@ -1,7 +1,5 @@
 #include <daxa/daxa.inl>
 
-#extension GL_EXT_debug_printf : enable
-
 #include "shadow_mapping.inl"
 
 DAXA_DECL_PUSH_CONSTANT(ShadowPassPC, push)

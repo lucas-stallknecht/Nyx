@@ -1,8 +1,5 @@
 #include <daxa/daxa.inl>
 
-#extension GL_EXT_debug_printf : enable
-#extension GL_NV_compute_shader_derivatives : enable
-
 #include "ssao.inl"
 
 DAXA_DECL_PUSH_CONSTANT(ComputeSSAOPC, push)
