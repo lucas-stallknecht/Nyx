@@ -5,16 +5,26 @@
 #include <expected>
 #include <unordered_map>
 
-enum class LoadModelError : u8
+struct LoadModelError
 {
-    File_Not_Found,
-    Failed_To_Load,
+    enum class Code : u8
+    {
+        File_Not_Found,
+        Failed_To_Load
+    };
+    Code code = {};
+    std::string message = {};
 };
 
-enum class LoadTextureError : u8
+struct LoadTextureError
 {
-    File_Not_Found,
-    Failed_To_Load,
+    enum class Code : u8
+    {
+        File_Not_Found,
+        Failed_To_Load
+    };
+    Code code = {};
+    std::string message = {};
 };
 
 struct AssetManager

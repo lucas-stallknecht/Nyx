@@ -4,7 +4,11 @@
 #include <bit>
 #include <glm/glm.hpp>
 
-void Scene::clear() { opaque_draws.clear(); }
+void Scene::clear()
+{
+    opaque_draws.clear();
+    transparent_draws.clear();
+}
 
 void Scene::add_model(Model const & model)
 {
@@ -29,14 +33,14 @@ void Scene::add_model(Model const & model)
             continue;
         }
 
-        Mesh const & mesh = model.meshes[static_cast<u32>(node.mesh_idx)];
+        Mesh const & mesh = model.meshes[static_cast<usize>(node.mesh_idx)];
         mat4 const & transform = world_transforms.back();
-        daxa::DeviceAddress vb_addr = gpu.device.device_address(mesh.vertex_buffer).value();
-        daxa::DeviceAddress mb_addr = gpu.device.device_address(model.material_buffer).value();
+        daxa::DeviceAddress const vb_addr = gpu.device.device_address(mesh.vertex_buffer).value();
+        daxa::DeviceAddress const mb_addr = gpu.device.device_address(model.material_buffer).value();
 
         for (auto const & sub : mesh.sub_meshes)
         {
-            opaque_draws.emplace_back(DrawCall{
+            DrawCall dc = {
                 .vertex_buffer = vb_addr,
                 .index_buffer = mesh.index_buffer,
                 .material_buffer = mb_addr,
@@ -44,7 +48,11 @@ void Scene::add_model(Model const & model)
                 .index_count = sub.index_count,
                 .first_index = sub.index_offset,
                 .material_idx = sub.material_idx,
-            });
+            };
+
+            bool const transparent =
+                sub.material_idx < model.material_transparent.size() && model.material_transparent[sub.material_idx];
+            (transparent ? transparent_draws : opaque_draws).push_back(dc);
         }
     }
 }

@@ -18,6 +18,7 @@ struct DrawCall
 struct Scene
 {
     std::vector<DrawCall> opaque_draws = {};
+    std::vector<DrawCall> transparent_draws = {};
 
     void clear();
     void add_model(Model const & model);

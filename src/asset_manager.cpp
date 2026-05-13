@@ -5,7 +5,6 @@
 #include "utils/gltf.hpp"
 #include "utils/ktx.hpp"
 #include "utils/upload.hpp"
-#include <bit>
 #include <fmt/core.h>
 #include <fastgltf/core.hpp>
 
@@ -14,7 +13,10 @@ AssetManager asset_manager = {};
 
 namespace
 {
-    usize hash_path_impl(std::string_view path) { return std::hash<std::string_view>{}(path); }
+    usize hash_path_impl(std::string_view path)
+    {
+        return std::hash<std::string>{}(std::filesystem::weakly_canonical(path).string());
+    }
 
     void destroy_model_gpu_resources_impl(Model & model)
     {
@@ -71,7 +73,7 @@ void AssetManager::unload_texture(std::string_view path)
 
 std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view path)
 {
-    fmt::println("Loading {}", path);
+    fmt::println("[Assets] Loading {}", path);
 
     usize const hash = hash_path_impl(path);
     if (auto it = models.find(hash); it != models.end())
@@ -82,15 +84,19 @@ std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view
     std::filesystem::path file_path = path;
     if (!std::filesystem::exists(file_path))
     {
-        fmt::println("Failed to load: {}. File not found", path);
-        return std::unexpected(LoadModelError::File_Not_Found);
+        return std::unexpected(LoadModelError{
+            .code = LoadModelError::Code::File_Not_Found,
+            .message = fmt::format("'{}': file not found", path),
+        });
     }
 
     fastgltf::Expected<fastgltf::MappedGltfFile> gltf = fastgltf::MappedGltfFile::FromPath(path);
     if (!bool(gltf))
     {
-        fmt::println("Failed to open: {}. {}", path, fastgltf::getErrorMessage(gltf.error()));
-        return std::unexpected(LoadModelError::Failed_To_Load);
+        return std::unexpected(LoadModelError{
+            .code = LoadModelError::Code::Failed_To_Load,
+            .message = fmt::format("'{}': {}", path, fastgltf::getErrorMessage(gltf.error())),
+        });
     }
 
     constexpr auto extensions = fastgltf::Extensions::KHR_texture_basisu;
@@ -101,8 +107,10 @@ std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view
     fastgltf::Expected<fastgltf::Asset> asset = parser.loadGltf(gltf.get(), file_path.parent_path(), options);
     if (!asset)
     {
-        fmt::println("Failed to load gltf: {}", fastgltf::getErrorMessage(asset.error()));
-        return std::unexpected(LoadModelError::Failed_To_Load);
+        return std::unexpected(LoadModelError{
+            .code = LoadModelError::Code::Failed_To_Load,
+            .message = fmt::format("'{}': {}", path, fastgltf::getErrorMessage(asset.error())),
+        });
     }
 
     Model model = {};
@@ -113,65 +121,25 @@ std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view
 
     // Images
     utils::gltf::BuildImagesResult image_result = utils::gltf::build_images(asset.get());
-    model.images.reserve(image_result.images.size());
-    for (auto & img_data : image_result.images)
+    model.images.resize(image_result.images.size());
+    for (usize i = 0; i < image_result.images.size(); ++i)
     {
-        model.images.emplace_back(
-            session.create_image(img_data.data.data(), img_data.data.size(), img_data.mip_infos, img_data.info));
+        auto & img_data = image_result.images[i];
+        if (!img_data.data.empty())
+        {
+            model.images[i] =
+                session.create_image(img_data.data.data(), img_data.data.size(), img_data.mip_infos, img_data.info);
+        }
     }
 
-    // Materials (CPU-side first, then upload the GPU buffer)
-    std::vector<MaterialData> materials = utils::gltf::build_materials(asset.get(), image_result.image_cache);
-    model.materials.reserve(materials.size());
-    for (auto const & mat_data : materials)
-    {
-        Material cpu_mat = {};
-        cpu_mat.base_color = mat_data.base_color;
-        cpu_mat.metallic = mat_data.metallic;
-        cpu_mat.roughness = mat_data.roughness;
-        if (mat_data.base_color_texture)
-        {
-            cpu_mat.base_color_texture = model.images[mat_data.base_color_texture.value()];
-        }
-        if (mat_data.normal_texture)
-        {
-            cpu_mat.normal_texture = model.images[mat_data.normal_texture.value()];
-        }
-        if (mat_data.metallic_roughness_texture)
-        {
-            cpu_mat.metallic_roughness_texture = model.images[mat_data.metallic_roughness_texture.value()];
-        }
-        model.materials.push_back(cpu_mat);
-    }
-    {
-        std::vector<GPUMaterial> gpu_materials;
-        gpu_materials.reserve(model.materials.size());
-        for (auto const & mat : model.materials)
-        {
-            GPUMaterial gpu_mat = {};
-            gpu_mat.base_color = std::bit_cast<daxa_f32vec3>(mat.base_color);
-            gpu_mat.metallic = mat.metallic;
-            gpu_mat.roughness = mat.roughness;
-            if (!mat.base_color_texture.is_empty())
-            {
-                gpu_mat.base_color_texture = mat.base_color_texture.default_view();
-            }
-            if (!mat.normal_texture.is_empty())
-            {
-                gpu_mat.normal_texture = mat.normal_texture.default_view();
-            }
-            if (!mat.metallic_roughness_texture.is_empty())
-            {
-                gpu_mat.metallic_roughness_texture = mat.metallic_roughness_texture.default_view();
-            }
-            gpu_materials.push_back(gpu_mat);
-        }
-        model.material_buffer =
-            session.create_buffer(gpu_materials.data(), {
-                                                            .size = gpu_materials.size() * sizeof(GPUMaterial),
-                                                            .name = "material buffer",
-                                                        });
-    }
+    // Materials: one pass straight to GPUMaterial, then upload
+    std::vector<GPUMaterial> gpu_materials =
+        utils::gltf::build_materials(asset.get(), image_result.image_cache, model.images, model.material_transparent);
+    model.material_buffer =
+        session.create_buffer(gpu_materials.data(), {
+                                                        .size = gpu_materials.size() * sizeof(GPUMaterial),
+                                                        .name = "material buffer",
+                                                    });
 
     // Meshes
     std::vector<MeshData> meshes = utils::gltf::build_meshes(asset.get());
@@ -204,7 +172,7 @@ std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view
 
 std::expected<daxa::ImageId, LoadTextureError> AssetManager::load_texture(std::string_view path)
 {
-    fmt::println("Loading {}", path);
+    fmt::println("[Assets] Loading {}", path);
 
     usize const hash = hash_path_impl(path);
 
@@ -217,15 +185,19 @@ std::expected<daxa::ImageId, LoadTextureError> AssetManager::load_texture(std::s
 
     if (!std::filesystem::exists(file_path))
     {
-        fmt::println("Failed to load: {}. File not found", path);
-        return std::unexpected(LoadTextureError::File_Not_Found);
+        return std::unexpected(LoadTextureError{
+            .code = LoadTextureError::Code::File_Not_Found,
+            .message = fmt::format("'{}': file not found", path),
+        });
     }
 
     std::expected<ImageData, std::string> img_data = utils::ktx::create_from_file(file_path.string().c_str());
     if (!img_data)
     {
-        fmt::println("{}: {}", path, img_data.error());
-        return std::unexpected(LoadTextureError::Failed_To_Load);
+        return std::unexpected(LoadTextureError{
+            .code = LoadTextureError::Code::Failed_To_Load,
+            .message = fmt::format("'{}': {}", path, img_data.error()),
+        });
     }
 
     UploadSession session = begin_upload_session();

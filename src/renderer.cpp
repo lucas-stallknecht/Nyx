@@ -7,6 +7,7 @@
 #include "rendering/draw_swapchain.inl"
 #include "gpu_context.hpp"
 #include "utils/upload.hpp"
+#include <fmt/core.h>
 #include <imgui.h>
 #include <random>
 
@@ -51,6 +52,9 @@ void Renderer::init(Window const & window)
     });
 
     init_resources(window);
+    init_ssao();
+
+    fmt::println("[Renderer] Compiling shaders...");
 
     depth_prepass_pipeline = gpu.pipeline_manager.add_raster_pipeline2(depth_prepass_pipeline_info()).value();
     shadow_pipeline = gpu.pipeline_manager.add_raster_pipeline2(shadow_mapping_pipeline_info()).value();
@@ -58,7 +62,8 @@ void Renderer::init(Window const & window)
     forward_pipeline = gpu.pipeline_manager.add_raster_pipeline2(forward_pipeline_info()).value();
     draw_swapchain_pipeline = gpu.pipeline_manager.add_compute_pipeline2(draw_swapchain_pipeline_info()).value();
 
-    init_ssao();
+    fmt::println("[Renderer] Shaders ready");
+
     init_task_graphs();
 }
 

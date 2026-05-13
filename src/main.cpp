@@ -91,7 +91,7 @@ namespace
                     ImGui::DragFloat3("Position", &light.position.x, 0.05f);
                     ImGui::ColorEdit3("Color", &light.color.x);
                     ImGui::DragFloat("Intensity", &light.intensity, 0.1f, 0.0f, 100.0f);
-                    ImGui::DragFloat("radius", &light.radius, 0.01f, 0.01f, 10.0f);
+                    ImGui::DragFloat("Radius", &light.radius, 0.01f, 0.01f, 10.0f);
                     ImGui::TreePop();
                 }
                 ImGui::PopID();
@@ -106,8 +106,8 @@ namespace
         if (ImGui::CollapsingHeader("SSAO", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Checkbox("Enabled###SSAO", std::bit_cast<bool *>(&app_state.frame_data.ssao_enabled));
-            ImGui::DragFloat("Radius###SSAO", &app_state.frame_data.ssao_radius, 0.001f, 0.001f, 1.0f);
-            ImGui::DragFloat("Bias###SSAO", &app_state.frame_data.ssao_bias, 0.001f, 0.001f, 0.1f);
+            ImGui::DragFloat("Radius", &app_state.frame_data.ssao_radius, 0.001f, 0.001f, 1.0f);
+            ImGui::DragFloat("Bias", &app_state.frame_data.ssao_bias, 0.001f, 0.001f, 0.1f);
         }
 
         ImGui::End();
@@ -155,7 +155,7 @@ namespace
 
         mat4 const cam_proj = app_state.camera.get_proj(aspect);
         mat4 const cam_view = app_state.camera.get_view();
-        FrameUniforms frame;
+        FrameUniforms frame = {};
         frame.camera = {
             .proj = std::bit_cast<daxa_f32mat4x4>(cam_proj),
             .inv_proj = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_proj)),
@@ -173,21 +173,28 @@ namespace
 
 int main()
 {
+    fmt::println("[App] Starting up");
+
     Window window = {
         .width = 1920,
         .height = 1080,
     };
-    WindowInitResult window_res = window.init();
-    if (window_res != WindowInitResult::Success)
+    if (auto r = window.init(); !r)
     {
-        auto int_res = static_cast<int>(window_res);
-        fmt::println("Failed to initialize Window: {}", int_res);
-        return int_res;
+        fmt::println("[App] {}", r.error());
+        return 1;
     }
     gpu.init(window);
 
-    // daxa::ImageId env_map = asset_manager.load_texture(std::string(ASSETS_DIR) + "textures/bunker.ktx").value();
-    Model * model = asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb").value();
+    auto model_result = asset_manager.load_model(std::string(ASSETS_DIR) + "models/sponza-ktx.glb");
+    if (!model_result)
+    {
+        fmt::println("[App] {}", model_result.error().message);
+        gpu.device.wait_idle();
+        asset_manager.cleanup();
+        return 1;
+    }
+    Model * model = *model_result;
 
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForVulkan(window.glfw_window_ptr, true);
@@ -234,6 +241,7 @@ int main()
         gpu.device.collect_garbage();
     }
 
+    fmt::println("[App] Shutting down");
     gpu.device.wait_idle();
     ImGui_ImplGlfw_Shutdown();
     renderer.cleanup();

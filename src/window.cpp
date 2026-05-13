@@ -2,13 +2,13 @@
 
 #include <fmt/base.h>
 
-WindowInitResult Window::init()
+std::expected<void, std::string> Window::init()
 {
     if (glfwInit() == GLFW_FALSE)
     {
-        fmt::println("Failed to init GLFW");
-        return WindowInitResult::GLFW_Init_Failed;
+        return std::unexpected("GLFW initialization failed");
     }
+
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
@@ -16,8 +16,8 @@ WindowInitResult Window::init()
         glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), "GPU Playground", nullptr, nullptr);
     if (glfw_window_ptr == nullptr)
     {
-        fmt::println("Failed to create window");
-        return WindowInitResult::Create_Window_Failed;
+        glfwTerminate();
+        return std::unexpected("Failed to create GLFW window");
     }
 
     glfwSetWindowUserPointer(glfw_window_ptr, this);
@@ -87,7 +87,8 @@ WindowInitResult Window::init()
         glfwSetInputMode(glfw_window_ptr, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     }
 
-    return WindowInitResult::Success;
+    fmt::println("[Window] Created {}x{}", width, height);
+    return {};
 }
 
 void Window::cleanup()

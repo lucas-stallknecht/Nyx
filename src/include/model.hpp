@@ -32,26 +32,6 @@ struct Mesh
     std::vector<SubMesh> sub_meshes = {};
 };
 
-struct MaterialData
-{
-    vec3 base_color = vec3(1.0f);
-    f32 metallic = 0.0f;
-    f32 roughness = 1.0f;
-    std::optional<u32> base_color_texture = {};
-    std::optional<u32> metallic_roughness_texture = {};
-    std::optional<u32> normal_texture = {};
-};
-
-struct Material
-{
-    vec3 base_color = vec3(1.0f);
-    f32 metallic = 0.0f;
-    f32 roughness = 1.0f;
-    daxa::ImageId base_color_texture;
-    daxa::ImageId metallic_roughness_texture;
-    daxa::ImageId normal_texture;
-};
-
 struct ImageMipInfo
 {
     usize offset = 0;
@@ -70,6 +50,6 @@ struct Model
     std::vector<Node> nodes = {};
     std::vector<Mesh> meshes = {};
     daxa::BufferId material_buffer;
-    std::vector<Material> materials = {};
+    std::vector<bool> material_transparent = {};
     std::vector<daxa::ImageId> images = {};
 };

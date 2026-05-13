@@ -11,7 +11,7 @@ void GPUContext::init(Window const & window)
     assert(window.glfw_window_ptr && "Window must be initialized before GPUContext");
     instance = daxa::create_instance({});
     device = instance.create_device_2(instance.choose_device({}, {}));
-    fmt::println("Chosen GPU: {}", reinterpret_cast<char const *>(device.properties().device_name));
+    fmt::println("[GPU] Using: {}", reinterpret_cast<char const *>(device.properties().device_name));
     swapchain = device.create_swapchain({
         .native_window_info = window.get_native_window_info(),
         .surface_format = {.format = daxa::Format::B8G8R8A8_SRGB, .color_space = daxa::ColorSpace::SRGB_NONLINEAR},

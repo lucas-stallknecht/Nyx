@@ -3,6 +3,7 @@
 #include "types.hpp"
 #include <daxa/daxa.hpp>
 #include <glm/glm.hpp>
+#include <expected>
 
 #include <GLFW/glfw3.h>
 #if defined(_WIN32)
@@ -22,13 +23,6 @@ enum class MouseState : u8
     Fully_Captured,
 };
 
-enum class WindowInitResult : u8
-{
-    Success,
-    GLFW_Init_Failed,
-    Create_Window_Failed
-};
-
 struct Window
 {
     u32 width = 1600;
@@ -41,7 +35,7 @@ struct Window
     vec2 last_mouse_position = {};
     vec2 mouse_delta = {};
 
-    WindowInitResult init();
+    std::expected<void, std::string> init();
     void cleanup();
     bool should_close() const { return glfwWindowShouldClose(glfw_window_ptr); }
     void update() const
