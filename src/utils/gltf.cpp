@@ -146,10 +146,27 @@ namespace utils::gltf
                         {
                             material_idx = static_cast<u32>(prim.materialIndex.value()) + 1u;
                         }
+
+                        // Local psoition optimum
+                        vec3 min_pos = {};
+                        vec3 max_pos = {};
+                        if (position_accessor.min.has_value() && position_accessor.max.has_value())
+                        {
+                            auto const & min = position_accessor.min.value();
+                            auto const & max = position_accessor.max.value();
+
+                            min_pos = {static_cast<f32>(min.get<double>(0)), static_cast<f32>(min.get<double>(1)),
+                                       static_cast<f32>(min.get<double>(2))};
+                            max_pos = {static_cast<f32>(max.get<double>(0)), static_cast<f32>(max.get<double>(1)),
+                                       static_cast<f32>(max.get<double>(2))};
+                        }
+
                         mesh.sub_meshes.emplace_back(SubMesh{
                             .index_count = static_cast<u32>(index_accessor.count),
                             .index_offset = index_offset,
                             .material_idx = material_idx,
+                            .bounds_origin = (max_pos + min_pos) / 2.0f,
+                            .bounds_extents = (max_pos - min_pos) / 2.0f,
                         });
                     }
                     return mesh;
@@ -257,7 +274,7 @@ namespace utils::gltf
 
         std::vector<GPUMaterial> out = {};
         out.reserve(1 + asset.materials.size());
-        out.push_back({}); // sentinel, submeshes with no material use index 0
+        out.push_back({}); // sentinel, sub_meshes with no material use index 0
         out_transparent.push_back(false);
 
         for (auto const & gltf_mat : asset.materials)

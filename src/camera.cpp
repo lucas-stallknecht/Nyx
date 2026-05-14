@@ -1,11 +1,10 @@
 #include "camera.hpp"
 #include <fmt/core.h>
 
-mat4 Camera::get_proj(f32 aspect_ratio) const
+void Camera::update_proj(f32 aspect_ratio)
 {
-    mat4 proj = glm::perspective(glm::radians(fov), aspect_ratio, near, far);
+    proj = glm::perspective(glm::radians(fov), aspect_ratio, near, far);
     proj[1][1] *= -1.0f; // Flip for Vulkan clip space
-    return proj;
 }
 
 mat4 Camera::get_view() const

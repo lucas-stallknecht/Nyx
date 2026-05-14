@@ -17,6 +17,7 @@ namespace
 {
     struct AppState
     {
+        int total_triangle_count = 0;
         Camera camera = {};
         GPUFrameData frame_data = {};
         f32 light_distance = 20.0f;
@@ -48,6 +49,8 @@ namespace
         ImGui::NewFrame();
         ImGui::Begin("Settings");
         ImGui::Text("%.1f ms/frame (%.1f FPS)", static_cast<double>(1000.0f * dt), static_cast<double>(1.0f / dt));
+        ImGui::Text("Draw calls: %i", gpu.stats.drawcall_count);
+        ImGui::Text("Triangle count: %i / %i ", gpu.stats.triangle_count, app_state.total_triangle_count);
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::Combo("Debug View", &app_state.frame_data.debug_view, DEBUG_VIEW_NAMES, IM_ARRAYSIZE(DEBUG_VIEW_NAMES));
@@ -145,9 +148,8 @@ namespace
         }
     }
 
-    FrameUniforms build_frame_uniforms(Window const & window)
+    FrameUniforms build_frame_uniforms()
     {
-        f32 const aspect = static_cast<f32>(window.width) / static_cast<f32>(window.height);
         vec3 const light_dir =
             glm::normalize(vec3(app_state.frame_data.dir_light_direction.x, app_state.frame_data.dir_light_direction.y,
                                 app_state.frame_data.dir_light_direction.z));
@@ -155,8 +157,9 @@ namespace
                                            app_state.shadow_range, app_state.shadow_near, app_state.shadow_far);
         mat4 const light_view = glm::lookAt(app_state.light_distance * light_dir, {}, {0.0f, 1.0f, 0.0f});
 
-        mat4 const cam_proj = app_state.camera.get_proj(aspect);
+        mat4 const cam_proj = app_state.camera.get_proj();
         mat4 const cam_view = app_state.camera.get_view();
+
         FrameUniforms frame = {};
         frame.camera = {
             .proj = std::bit_cast<daxa_f32mat4x4>(cam_proj),
@@ -168,6 +171,18 @@ namespace
         frame.frame_data = app_state.frame_data;
         frame.frame_data.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
         frame.frame_data.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
+
+        // --- DEBUG OVERRIDE ---
+        if (app_state.frame_data.debug_view == static_cast<int>(DebugView::FrustumCulling))
+        {
+            vec3 focus = vec3(0.0f);
+            vec3 debug_pos = focus + vec3(0.0f, 30.0f, 30.0f);
+            mat4 debug_view = glm::lookAt(debug_pos, focus, vec3(0.0f, 1.0f, 0.0f));
+            frame.camera.view = std::bit_cast<daxa_f32mat4x4>(debug_view);
+            frame.camera.inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(debug_view));
+            frame.camera.position = std::bit_cast<daxa_f32vec3>(debug_pos);
+        }
+
         return frame;
     }
 
@@ -187,6 +202,8 @@ int main()
         return 1;
     }
     gpu.init(window);
+    f32 aspect = static_cast<f32>(window.width) / static_cast<f32>(window.height);
+    app_state.camera.update_proj(aspect);
 
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForVulkan(window.glfw_window_ptr, true);
@@ -210,7 +227,7 @@ int main()
             asset_manager.cleanup();
             return 1;
         }
-        scene.add_model(*(model_result.value()));
+        app_state.total_triangle_count += scene.add_model(*(model_result.value()));
     }
 
     while (!window.should_close())
@@ -224,6 +241,8 @@ int main()
         {
             gpu.swapchain.resize();
             renderer.resize_resources(window);
+            aspect = static_cast<f32>(window.width) / static_cast<f32>(window.height);
+            app_state.camera.update_proj(aspect);
             window.swapchain_out_of_date = false;
         }
 
@@ -243,7 +262,7 @@ int main()
         update_ui(dt);
 
         scene.update(app_state.camera);
-        renderer.render(build_frame_uniforms(window), scene);
+        renderer.render(build_frame_uniforms(), scene);
 
         gpu.device.collect_garbage();
     }

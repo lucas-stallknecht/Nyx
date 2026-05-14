@@ -55,16 +55,21 @@ inline void depth_prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline 
     cr.set_pipeline(*pipeline);
 
     DepthPrepassPC push = {
-        .global_buffer = gpu.device.device_address(global_buffer).value(),
+        .global_buffer = ti.device.device_address(global_buffer).value(),
     };
 
     for (auto const & draw : (*scene)->opaque_draws)
     {
+        if (draw.culled)
+        {
+            continue;
+        }
         cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;
         cr.push_constant(push);
         cr.draw_indexed({.index_count = draw.index_count, .first_index = draw.first_index});
+        gpu.stats.drawcall_count++;
     }
 
     ti.recorder = std::move(cr).end_renderpass();

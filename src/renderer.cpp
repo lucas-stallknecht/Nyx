@@ -297,6 +297,9 @@ void Renderer::render(FrameUniforms const & uniforms, Scene const & s)
     }
     gpu.t_swapchain_image.set_image(new_image);
 
+    gpu.stats.drawcall_count = 0;
+    gpu.stats.triangle_count = 0;
+
     // Update internal scene lookup
     scene = &s;
     *gpu.device.buffer_host_address_as<GPUCamera>(camera_buffer).value() = uniforms.camera;

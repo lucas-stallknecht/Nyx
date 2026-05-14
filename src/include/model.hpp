@@ -16,6 +16,8 @@ struct SubMesh
     u32 index_count = 0;
     u32 index_offset = 0;
     u32 material_idx = 0;
+    vec3 bounds_origin = {};
+    vec3 bounds_extents = {};
 };
 
 struct MeshData

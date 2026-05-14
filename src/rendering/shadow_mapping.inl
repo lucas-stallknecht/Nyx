@@ -15,6 +15,7 @@ struct ShadowPassPC
 #if defined(__cplusplus)
 
 #include "../scene.hpp"
+#include "../gpu_context.hpp"
 #include <daxa/utils/pipeline_manager.hpp>
 #include <daxa/utils/task_graph.hpp>
 
@@ -66,6 +67,7 @@ inline void shadow_mapping_callback(daxa::TaskInterface ti, daxa::RasterPipeline
         push.vertex_buffer = draw.vertex_buffer;
         cr.push_constant(push);
         cr.draw_indexed({.index_count = draw.index_count, .first_index = draw.first_index});
+        gpu.stats.drawcall_count++;
     }
 
     ti.recorder = std::move(cr).end_renderpass();

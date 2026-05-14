@@ -8,7 +8,8 @@
     X(Roughness, 4)                                                                                                    \
     X(Metallic, 5)                                                                                                     \
     X(AO, 6)                                                                                                           \
-    X(Shadow, 7)
+    X(Shadow, 7)                                                                                                       \
+    X(FrustumCulling, 8)
 
 #if defined(__cplusplus)
 

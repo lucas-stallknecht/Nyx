@@ -13,6 +13,9 @@ vec3 get_debug_col(int view, Surface surface, float ao, float shadow) {
         case DEBUG_None:
         return vec3(-1.0);
 
+        case DEBUG_FrustumCulling:
+        return vec3(-1.0);
+
         case DEBUG_Normals:
         return max(surface.normal, vec3(0.0));
 

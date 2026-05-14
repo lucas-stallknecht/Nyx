@@ -97,13 +97,17 @@ inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
             });
 
     ForwardPassPC push = {
-        .global_buffer = gpu.device.device_address(global_buffer).value(),
+        .global_buffer = ti.device.device_address(global_buffer).value(),
         .attachments = ti.attachment_shader_blob,
     };
 
     cr.set_pipeline(*opaque_pipeline);
     for (auto const & draw : (*scene)->opaque_draws)
     {
+        if (draw.culled)
+        {
+            continue;
+        }
         cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;
@@ -111,11 +115,17 @@ inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
         push.material_idx = draw.material_idx;
         cr.push_constant(push);
         cr.draw_indexed({.index_count = draw.index_count, .first_index = draw.first_index});
+        gpu.stats.drawcall_count++;
+        gpu.stats.triangle_count += static_cast<int>((draw.index_count / 3));
     }
 
     cr.set_pipeline(*transparent_pipeline);
     for (auto const & draw : (*scene)->transparent_draws)
     {
+        if (draw.culled)
+        {
+            continue;
+        }
         cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;
@@ -123,6 +133,8 @@ inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
         push.material_idx = draw.material_idx;
         cr.push_constant(push);
         cr.draw_indexed({.index_count = draw.index_count, .first_index = draw.first_index});
+        gpu.stats.drawcall_count++;
+        gpu.stats.triangle_count += static_cast<int>((draw.index_count / 3));
     }
 
     ti.recorder = std::move(cr).end_renderpass();
