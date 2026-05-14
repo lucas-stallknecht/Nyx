@@ -152,7 +152,7 @@ void main()
 
     if (mat.base_color_texture.value != 0) {
         vec4 tex_color = texture(daxa_sampler2D(mat.base_color_texture, global.default_linear_sampler), f_in.uv);
-        surface.albedo.rgb *= tex_color.rgb;
+        surface.albedo.rgb = tex_color.rgb;
         alpha *= tex_color.a;
         if (alpha < mat.alpha_cutoff)
             discard;

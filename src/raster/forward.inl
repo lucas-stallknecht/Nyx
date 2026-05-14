@@ -32,8 +32,8 @@ struct ForwardPassPC
 inline daxa::RasterPipelineCompileInfo2 opaque_pipeline_info()
 {
     return {
-        .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/forward.glsl"}},
-        .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/forward.glsl"}},
+        .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/forward.glsl"}},
+        .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/forward.glsl"}},
         .color_attachments = {{.format = daxa::Format::R32G32B32A32_SFLOAT}},
         .depth_test =
             daxa::DepthTestInfo{

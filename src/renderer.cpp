@@ -1,11 +1,11 @@
 #include "renderer.hpp"
 
-#include "rendering/depth_prepass.inl"
-#include "rendering/shadow_mapping.inl"
-#include "rendering/forward.inl"
-#include "rendering/ssao.inl"
-#include "rendering/draw_swapchain.inl"
-#include "rendering/ssao_blur.inl"
+#include "raster/depth_prepass.inl"
+#include "raster/shadow_mapping.inl"
+#include "raster/forward.inl"
+#include "postprocess/ssao.inl"
+#include "postprocess/composite.inl"
+#include "postprocess/blur.inl"
 #include "gpu_context.hpp"
 #include "utils/upload.hpp"
 #include <fmt/core.h>
@@ -49,7 +49,7 @@ namespace
             .format = daxa::Format::R16_SFLOAT,
             .size = {.x = w.width, .y = w.height, .z = 1},
             .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::SHADER_STORAGE,
-            .name = "ssao blur image",
+            .name = "ssao blurred image",
         };
     }
 } // namespace
@@ -68,11 +68,11 @@ void Renderer::init(Window const & window)
 
     depth_prepass_pipeline = gpu.pipeline_manager.add_raster_pipeline2(depth_prepass_pipeline_info()).value();
     shadow_pipeline = gpu.pipeline_manager.add_raster_pipeline2(shadow_mapping_pipeline_info()).value();
-    ssao_pipeline = gpu.pipeline_manager.add_compute_pipeline2(compute_ssao_pipeline_info()).value();
-    ssao_blur_pipeline = gpu.pipeline_manager.add_compute_pipeline2(blur_ssao_pipeline_info()).value();
+    ssao_pipeline = gpu.pipeline_manager.add_compute_pipeline2(ssao_pipeline_info()).value();
+    blur_pipeline = gpu.pipeline_manager.add_compute_pipeline2(blur_pipeline_info()).value();
     opaque_pipeline = gpu.pipeline_manager.add_raster_pipeline2(opaque_pipeline_info()).value();
     transparent_pipeline = gpu.pipeline_manager.add_raster_pipeline2(transparent_pipeline_info()).value();
-    draw_swapchain_pipeline = gpu.pipeline_manager.add_compute_pipeline2(draw_swapchain_pipeline_info()).value();
+    composite_pipeline = gpu.pipeline_manager.add_compute_pipeline2(composite_pipeline_info()).value();
 
     fmt::println("[Renderer] Shaders ready");
 
@@ -121,9 +121,9 @@ void Renderer::init_resources(Window const & window)
         .image = gpu.device.create_image(make_ssao_info(window)),
         .name = "task ssao image",
     });
-    t_ssao_blur_image = daxa::ExternalTaskImage({
+    t_ssao_blurred_image = daxa::ExternalTaskImage({
         .image = gpu.device.create_image(make_ssao_blur_info(window)),
-        .name = "task ssao blur image",
+        .name = "task ssao blurred image",
     });
     global_buffer = gpu.device.create_buffer({
         .size = sizeof(GPUGlobals),
@@ -162,7 +162,7 @@ void Renderer::init_task_graphs()
     loop_task_graph.register_image(t_depth_image);
     loop_task_graph.register_image(t_shadow_map);
     loop_task_graph.register_image(t_ssao_image);
-    loop_task_graph.register_image(t_ssao_blur_image);
+    loop_task_graph.register_image(t_ssao_blurred_image);
 
     // Since this->scene value changes every frame, we must pass a pointer to it
     loop_task_graph.add_task(daxa::RasterTask("draw depth prepass")
@@ -170,20 +170,20 @@ void Renderer::init_task_graphs()
                                  .executes(depth_prepass_callback, depth_prepass_pipeline.get(), &scene,
                                            t_depth_image.view(), global_buffer));
     loop_task_graph.add_task(daxa::ComputeTask("compute ssao")
-                                 .uses_head<ComputeSSAOHead::Info>()
+                                 .uses_head<SSAOHead::Info>()
                                  .head_views({
                                      .depth_image = t_depth_image.view(),
                                      .ssao_image = t_ssao_image.view(),
                                  })
-                                 .executes(compute_ssao_callback, ssao_pipeline.get(), global_buffer,
-                                           ssao_kernel_buffer, ssao_noise_image, ssao_noise_sampler));
+                                 .executes(ssao_callback, ssao_pipeline.get(), global_buffer, ssao_kernel_buffer,
+                                           ssao_noise_image, ssao_noise_sampler));
     loop_task_graph.add_task(daxa::ComputeTask("blur ssao")
-                                 .uses_head<BlurSSAOHead::Info>()
+                                 .uses_head<BlurHead::Info>()
                                  .head_views({
-                                     .ssao_image = t_ssao_image.view(),
-                                     .ssao_blur_image = t_ssao_blur_image.view(),
+                                     .input_image = t_ssao_image.view(),
+                                     .blurred_image = t_ssao_blurred_image.view(),
                                  })
-                                 .executes(blur_ssao_callback, ssao_blur_pipeline.get()));
+                                 .executes(blur_callback, blur_pipeline.get()));
     loop_task_graph.add_task(
         daxa::RasterTask("draw shadow depth")
             .depth_stencil_attachment.writes(t_shadow_map.view())
@@ -195,16 +195,16 @@ void Renderer::init_task_graphs()
                 .color_target = t_draw_image.view(),
                 .depth_target = t_depth_image.view(),
                 .shadow_map = t_shadow_map.view(),
-                .ssao_image = t_ssao_blur_image.view(),
+                .ssao_image = t_ssao_blurred_image.view(),
             })
             .executes(forward_callback, opaque_pipeline.get(), transparent_pipeline.get(), &scene, global_buffer));
-    loop_task_graph.add_task(daxa::ComputeTask("draw to swapchain")
-                                 .uses_head<DrawSwapchainHead::Info>()
+    loop_task_graph.add_task(daxa::ComputeTask("composition")
+                                 .uses_head<CompositeHead::Info>()
                                  .head_views({
                                      .draw_image = t_draw_image.view(),
-                                     .swapchain_image = gpu.t_swapchain_image.view(),
+                                     .output_image = gpu.t_swapchain_image.view(),
                                  })
-                                 .executes(draw_swapchain_callback, draw_swapchain_pipeline.get(), global_buffer));
+                                 .executes(composite_callback, composite_pipeline.get(), global_buffer));
     loop_task_graph.add_task(daxa::RasterTask("draw GUI")
                                  .color_attachment.writes(gpu.t_swapchain_image)
                                  .executes(
@@ -315,6 +315,8 @@ void Renderer::resize_resources(Window const & window)
     t_draw_image.set_image(gpu.device.create_image(make_draw_info(window)));
     gpu.device.destroy_image(t_ssao_image.info().image);
     t_ssao_image.set_image(gpu.device.create_image(make_ssao_info(window)));
+    gpu.device.destroy_image(t_ssao_blurred_image.info().image);
+    t_ssao_blurred_image.set_image(gpu.device.create_image(make_ssao_blur_info(window)));
 }
 
 void Renderer::cleanup() const
@@ -330,6 +332,6 @@ void Renderer::cleanup() const
     gpu.device.destroy_image(t_shadow_map.info().image);
     gpu.device.destroy_image(t_draw_image.info().image);
     gpu.device.destroy_image(t_ssao_image.info().image);
-    gpu.device.destroy_image(t_ssao_blur_image.info().image);
+    gpu.device.destroy_image(t_ssao_blurred_image.info().image);
     gpu.device.destroy_image(ssao_noise_image);
 }

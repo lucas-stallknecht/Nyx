@@ -20,10 +20,10 @@ struct Renderer
     std::shared_ptr<daxa::RasterPipeline> depth_prepass_pipeline;
     std::shared_ptr<daxa::RasterPipeline> shadow_pipeline;
     std::shared_ptr<daxa::ComputePipeline> ssao_pipeline;
-    std::shared_ptr<daxa::ComputePipeline> ssao_blur_pipeline;
+    std::shared_ptr<daxa::ComputePipeline> blur_pipeline;
     std::shared_ptr<daxa::RasterPipeline> opaque_pipeline;
     std::shared_ptr<daxa::RasterPipeline> transparent_pipeline;
-    std::shared_ptr<daxa::ComputePipeline> draw_swapchain_pipeline;
+    std::shared_ptr<daxa::ComputePipeline> composite_pipeline;
     daxa::SamplerId default_linear_sampler;
     daxa::SamplerId shadow_sampler;
     daxa::SamplerId ssao_noise_sampler;
@@ -37,7 +37,7 @@ struct Renderer
     daxa::ExternalTaskImage t_depth_image;
     daxa::ExternalTaskImage t_shadow_map;
     daxa::ExternalTaskImage t_ssao_image;
-    daxa::ExternalTaskImage t_ssao_blur_image;
+    daxa::ExternalTaskImage t_ssao_blurred_image;
     daxa::TaskGraph loop_task_graph;
 
     void init(Window const & window);

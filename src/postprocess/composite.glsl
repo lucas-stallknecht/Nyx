@@ -1,8 +1,8 @@
 #include <daxa/daxa.inl>
 
-#include "draw_swapchain.inl"
+#include "composite.inl"
 
-DAXA_DECL_PUSH_CONSTANT(DrawSwapchainPC, push)
+DAXA_DECL_PUSH_CONSTANT(CompositePC, push)
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_COMPUTE
 
@@ -42,7 +42,7 @@ void main()
     // Gamma correction
     out_col = linear_to_srgb(out_col);
 
-    imageStore(daxa_image2D(push.attachments.swapchain_image), tex_coords, vec4(out_col, 1.0));
+    imageStore(daxa_image2D(push.attachments.output_image), tex_coords, vec4(out_col, 1.0));
 }
 
 #endif

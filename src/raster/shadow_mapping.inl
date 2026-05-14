@@ -2,9 +2,10 @@
 
 #include "../include/gpu_globals.inl"
 #include <daxa/daxa.inl>
-#include <daxa/utils/task_graph.inl>
 
-struct DepthPrepassPC
+#define SHADOW_MAP_SIZE 4096
+
+struct ShadowPassPC
 {
     daxa_f32mat4x4 model_matrix;
     daxa_BufferPtr(GPUGlobals) global_buffer;
@@ -13,16 +14,16 @@ struct DepthPrepassPC
 
 #if defined(__cplusplus)
 
-#include "../gpu_context.hpp"
 #include "../scene.hpp"
+#include "../gpu_context.hpp"
 #include <daxa/utils/pipeline_manager.hpp>
 #include <daxa/utils/task_graph.hpp>
 
-inline daxa::RasterPipelineCompileInfo2 depth_prepass_pipeline_info()
+inline daxa::RasterPipelineCompileInfo2 shadow_mapping_pipeline_info()
 {
     return {
-        .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/depth_prepass.glsl"}},
-        .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"rendering/depth_prepass.glsl"}},
+        .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/shadow_mapping.glsl"}},
+        .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/shadow_mapping.glsl"}},
         .depth_test =
             daxa::DepthTestInfo{
                 .depth_attachment_format = daxa::Format::D32_SFLOAT,
@@ -30,18 +31,18 @@ inline daxa::RasterPipelineCompileInfo2 depth_prepass_pipeline_info()
             },
         .raster =
             {
-                .face_culling = daxa::FaceCullFlagBits::BACK_BIT,
+                .face_culling = daxa::FaceCullFlagBits::FRONT_BIT,
                 .front_face_winding = daxa::FrontFaceWinding::COUNTER_CLOCKWISE,
+                .depth_bias_enable = true,
             },
-        .push_constant_size = sizeof(DepthPrepassPC),
-        .name = "depth prepass rendering pipeline",
+        .push_constant_size = sizeof(ShadowPassPC),
+        .name = "shadow depth pipeline",
     };
 }
 
-inline void depth_prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline const * pipeline, Scene const ** scene,
-                                   daxa::TaskImageView depth_target, daxa::BufferId global_buffer)
+inline void shadow_mapping_callback(daxa::TaskInterface ti, daxa::RasterPipeline const * pipeline, Scene const ** scene,
+                                    daxa::TaskImageView depth_target, daxa::BufferId global_buffer)
 {
-    daxa::Extent3D size = ti.info(depth_target).value().size;
     daxa::RenderCommandRecorder cr = std::move(ti.recorder)
                                          .begin_renderpass({
                                              .depth_attachment =
@@ -50,20 +51,17 @@ inline void depth_prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline 
                                                      .load_op = daxa::AttachmentLoadOp::CLEAR,
                                                      .clear_value = daxa::DepthValue{.depth = 1.0f, .stencil = 0},
                                                  },
-                                             .render_area = {.width = size.x, .height = size.y},
+                                             .render_area = {.width = SHADOW_MAP_SIZE, .height = SHADOW_MAP_SIZE},
                                          });
     cr.set_pipeline(*pipeline);
+    cr.set_depth_bias({.constant_factor = -0.0025f, .slope_factor = 1.75f});
 
-    DepthPrepassPC push = {
+    ShadowPassPC push = {
         .global_buffer = ti.device.device_address(global_buffer).value(),
     };
 
     for (auto const & draw : (*scene)->opaque_draws)
     {
-        if (draw.culled)
-        {
-            continue;
-        }
         cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;

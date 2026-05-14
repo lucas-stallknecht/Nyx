@@ -213,9 +213,9 @@ int main()
 
     Scene scene = {};
     std::vector<std::string> model_names = {
-        // "models/super_sponza/sponza-ktx.gltf",
-        // "models/super_sponza/sponza_curtains-ktx.gltf",
-        "models/sponza-ktx.glb",
+        "crytek_sponza/crytek_sponza.gltf",
+        // "intel_sponza/intel_sponza_main.gltf",
+        // "intel_sponza/intel_sponza_curtains.gltf",
     };
     for (auto const & name : model_names)
     {
@@ -223,9 +223,7 @@ int main()
         if (!model_result)
         {
             fmt::println("[App] {}", model_result.error().message);
-            gpu.device.wait_idle();
-            asset_manager.cleanup();
-            return 1;
+            continue;
         }
         app_state.total_triangle_count += scene.add_model(*(model_result.value()));
     }

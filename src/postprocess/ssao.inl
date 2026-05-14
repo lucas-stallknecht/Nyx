@@ -8,18 +8,18 @@
 #define SSAO_NOISE_DIM 4
 #define SSAO_N_ROTATIONS (SSAO_NOISE_DIM * SSAO_NOISE_DIM)
 
-DAXA_DECL_RASTER_TASK_HEAD_BEGIN(ComputeSSAOHead)
+DAXA_DECL_RASTER_TASK_HEAD_BEGIN(SSAOHead)
 DAXA_TH_IMAGE_ID(COMPUTE_SHADER::READ, REGULAR_2D, depth_image)
 DAXA_TH_IMAGE_ID(COMPUTE_SHADER::WRITE, REGULAR_2D, ssao_image)
 DAXA_DECL_TASK_HEAD_END
 
-struct ComputeSSAOPC
+struct SSAOPC
 {
     daxa_BufferPtr(GPUGlobals) global_buffer;
     daxa_ImageViewId noise_image;
     daxa_SamplerId noise_sampler;
     daxa_BufferPtr(vec3) kernel_buffer;
-    DAXA_TH_BLOB(ComputeSSAOHead, attachments)
+    DAXA_TH_BLOB(SSAOHead, attachments)
 };
 
 #if defined(__cplusplus)
@@ -27,25 +27,24 @@ struct ComputeSSAOPC
 #include <daxa/utils/pipeline_manager.hpp>
 #include <daxa/utils/task_graph.hpp>
 
-inline daxa::ComputePipelineCompileInfo2 compute_ssao_pipeline_info()
+inline daxa::ComputePipelineCompileInfo2 ssao_pipeline_info()
 {
     return {
-        .source = daxa::ShaderFile{"rendering/ssao.glsl"},
-        .push_constant_size = sizeof(ComputeSSAOPC),
+        .source = daxa::ShaderFile{"postprocess/ssao.glsl"},
+        .push_constant_size = sizeof(SSAOPC),
         .name = "compute ssao pipeline",
     };
 }
 
-inline void compute_ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline,
-                                  daxa::BufferId global_buffer, daxa::BufferId kernel_buffer, daxa::ImageId noise_image,
-                                  daxa::SamplerId noise_sampler)
+inline void ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline, daxa::BufferId global_buffer,
+                          daxa::BufferId kernel_buffer, daxa::ImageId noise_image, daxa::SamplerId noise_sampler)
 {
-    auto const & AT = ComputeSSAOHead::Info::AT;
+    auto const & AT = SSAOHead::Info::AT;
     daxa::Extent3D size = ti.info(AT.depth_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;
 
     cr.set_pipeline(*pipeline);
-    cr.push_constant(ComputeSSAOPC{
+    cr.push_constant(SSAOPC{
         .global_buffer = ti.device.device_address(global_buffer).value(),
         .noise_image = noise_image.default_view(),
         .noise_sampler = noise_sampler,
