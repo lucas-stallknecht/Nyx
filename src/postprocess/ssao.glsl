@@ -11,10 +11,7 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 vec3 calc_view_position_from_uv(vec2 uv, mat4 inv_proj, daxa_SamplerId depth_sampler)
 {
     float depth = texture(
-            daxa_sampler2D(
-                push.attachments.depth_image,
-                depth_sampler
-            ),
+            daxa_sampler2D(push.attachments.depth_image, depth_sampler),
             uv
         ).r;
     vec4 ndc = vec4(
@@ -45,9 +42,10 @@ void main()
     vec3 view_pos = calc_view_position_from_uv(uv, cam.inv_proj, global.default_linear_sampler);
 
     vec2 texel = 1.0 / vec2(size);
-    vec3 px = calc_view_position_from_uv(uv + vec2(texel.x, 0.0), cam.inv_proj, global.default_linear_sampler) - view_pos;
-    vec3 py = calc_view_position_from_uv(uv + vec2(0.0, texel.y), cam.inv_proj, global.default_linear_sampler) - view_pos;
-    vec3 view_normal = normalize(cross(px, py) * -1.0);
+    vec3 view_normal = 2.0 * texture(
+                daxa_sampler2D(push.attachments.slim_gbuffer, global.default_linear_sampler),
+                uv
+            ).rgb - 1.0;
 
     vec2 noise_scale = size / float(SSAO_NOISE_DIM);
     vec3 random_vec = texture(

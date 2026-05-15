@@ -17,7 +17,7 @@ struct FrameUniforms
 struct Renderer
 {
     daxa::ImGuiRenderer imgui_renderer;
-    std::shared_ptr<daxa::RasterPipeline> depth_prepass_pipeline;
+    std::shared_ptr<daxa::RasterPipeline> prepass_pipeline;
     std::shared_ptr<daxa::RasterPipeline> shadow_pipeline;
     std::shared_ptr<daxa::ComputePipeline> ssao_pipeline;
     std::shared_ptr<daxa::ComputePipeline> blur_pipeline;
@@ -36,6 +36,7 @@ struct Renderer
     daxa::ImageId ssao_noise_image;
     daxa::ExternalTaskImage t_draw_image;
     daxa::ExternalTaskImage t_depth_image;
+    daxa::ExternalTaskImage t_slim_gbuffer;
     daxa::ExternalTaskImage t_shadow_map;
     daxa::ExternalTaskImage t_ssao_image;
     daxa::ExternalTaskImage t_ssao_blurred_image;

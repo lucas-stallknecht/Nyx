@@ -1,6 +1,6 @@
 #include "renderer.hpp"
 
-#include "raster/depth_prepass.inl"
+#include "raster/prepass.inl"
 #include "raster/shadow_mapping.inl"
 #include "raster/forward.inl"
 #include "postprocess/ssao.inl"
@@ -32,6 +32,16 @@ namespace
             .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
                      daxa::ImageUsageFlagBits::SHADER_STORAGE,
             .name = "depth image",
+        };
+    }
+    daxa::ImageInfo make_slim_gbuffer_indo(Window const & w)
+    {
+        return {
+            .format = daxa::Format::R8G8B8A8_UNORM,
+            .size = {.x = w.width, .y = w.height, .z = 1},
+            .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
+                     daxa::ImageUsageFlagBits::SHADER_STORAGE,
+            .name = "slim gbuffer image",
         };
     }
     daxa::ImageInfo make_ssao_info(Window const & w)
@@ -66,7 +76,7 @@ void Renderer::init(Window const & window)
 
     fmt::println("[Renderer] Compiling shaders...");
 
-    depth_prepass_pipeline = gpu.pipeline_manager.add_raster_pipeline2(depth_prepass_pipeline_info()).value();
+    prepass_pipeline = gpu.pipeline_manager.add_raster_pipeline2(prepass_pipeline_info()).value();
     shadow_pipeline = gpu.pipeline_manager.add_raster_pipeline2(shadow_mapping_pipeline_info()).value();
     ssao_pipeline = gpu.pipeline_manager.add_compute_pipeline2(ssao_pipeline_info()).value();
     blur_pipeline = gpu.pipeline_manager.add_compute_pipeline2(blur_pipeline_info()).value();
@@ -119,6 +129,10 @@ void Renderer::init_resources(Window const & window)
     t_depth_image = daxa::ExternalTaskImage({
         .image = gpu.device.create_image(make_depth_info(window)),
         .name = "task depth image",
+    });
+    t_slim_gbuffer = daxa::ExternalTaskImage({
+        .image = gpu.device.create_image(make_slim_gbuffer_indo(window)),
+        .name = "task slim gbuffer image",
     });
     t_shadow_map = daxa::ExternalTaskImage({
         .image = gpu.device.create_image({
@@ -176,16 +190,19 @@ void Renderer::init_task_graphs()
     loop_task_graph.register_image(t_shadow_map);
     loop_task_graph.register_image(t_ssao_image);
     loop_task_graph.register_image(t_ssao_blurred_image);
+    loop_task_graph.register_image(t_slim_gbuffer);
 
     // Since this->scene value changes every frame, we must pass a pointer to it
-    loop_task_graph.add_task(daxa::RasterTask("draw depth prepass")
+    loop_task_graph.add_task(daxa::RasterTask("draw prepass")
                                  .depth_stencil_attachment.writes(t_depth_image.view())
-                                 .executes(depth_prepass_callback, depth_prepass_pipeline.get(), &scene,
-                                           t_depth_image.view(), global_buffer));
+                                 .color_attachment.writes(t_slim_gbuffer.view())
+                                 .executes(prepass_callback, prepass_pipeline.get(), &scene, t_depth_image.view(),
+                                           t_slim_gbuffer.view(), global_buffer));
     loop_task_graph.add_task(daxa::ComputeTask("compute ssao")
                                  .uses_head<SSAOHead::Info>()
                                  .head_views({
                                      .depth_image = t_depth_image.view(),
+                                     .slim_gbuffer = t_slim_gbuffer.view(),
                                      .ssao_image = t_ssao_image.view(),
                                  })
                                  .executes(ssao_callback, ssao_pipeline.get(), global_buffer, ssao_kernel_buffer,
@@ -332,6 +349,8 @@ void Renderer::resize_resources(Window const & window)
     t_ssao_image.set_image(gpu.device.create_image(make_ssao_info(window)));
     gpu.device.destroy_image(t_ssao_blurred_image.info().image);
     t_ssao_blurred_image.set_image(gpu.device.create_image(make_ssao_blur_info(window)));
+    gpu.device.destroy_image(t_slim_gbuffer.info().image);
+    t_slim_gbuffer.set_image(gpu.device.create_image(make_slim_gbuffer_indo(window)));
 }
 
 void Renderer::cleanup() const
@@ -345,6 +364,7 @@ void Renderer::cleanup() const
     gpu.device.destroy_buffer(global_buffer);
     gpu.device.destroy_buffer(ssao_kernel_buffer);
     gpu.device.destroy_image(t_depth_image.info().image);
+    gpu.device.destroy_image(t_slim_gbuffer.info().image);
     gpu.device.destroy_image(t_shadow_map.info().image);
     gpu.device.destroy_image(t_draw_image.info().image);
     gpu.device.destroy_image(t_ssao_image.info().image);
