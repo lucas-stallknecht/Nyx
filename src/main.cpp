@@ -20,7 +20,7 @@ namespace
         int total_triangle_count = 0;
         Camera camera = {};
         GPUFrameData frame_data = {};
-        f32 light_distance = 20.0f;
+        f32 light_distance = 25.0f;
         f32 shadow_range = 15.0f;
         f32 shadow_near = 0.1f;
         f32 shadow_far = 50.0f;
@@ -30,9 +30,9 @@ namespace
         .frame_data =
             {
                 .ambient_light_color = {1.0f, 1.0f, 1.0f},
-                .ambient_light_intensity = 0.1f,
+                .ambient_light_intensity = 0.08f,
                 .dir_light_direction = {0.25f, 1.0f, 0.1f},
-                .dir_light_intensity = 3.0f,
+                .dir_light_intensity = 5.0f,
                 .dir_light_color = {1.0f, 1.0f, 1.0f},
                 .num_point_lights = 1,
                 .pcf_enabled = true,
@@ -40,6 +40,13 @@ namespace
                 .ssao_enabled = true,
                 .ssao_radius = 0.3f,
                 .ssao_bias = 0.001f,
+                .ssr_enabled = true,
+                .ssr_min_mask = 0.02f,
+                .ssr_max_mask = 1.0f,
+                .ssr_reflection_intensity = 1.0,
+                .ssr_screen_edge_fade = 0.2f,
+                .ssr_num_samples = 256,
+                .ssr_max_distance = 100.0,
             },
     };
 
@@ -73,7 +80,7 @@ namespace
 
         if (ImGui::CollapsingHeader("Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::Checkbox("Enabled", std::bit_cast<bool *>(&app_state.frame_data.pcf_enabled));
+            ImGui::Checkbox("PCF Enabled", std::bit_cast<bool *>(&app_state.frame_data.pcf_enabled));
             ImGui::DragFloat("Light Distance", &app_state.light_distance, 0.1f, 1.0f, 200.0f);
             ImGui::DragFloat("Shadow Range", &app_state.shadow_range, 0.1f, 1.0f, 200.0f);
             ImGui::DragFloat("Shadow Near", &app_state.shadow_near, 0.01f, 0.001f, 20.0f);
@@ -103,7 +110,7 @@ namespace
             }
         }
 
-        if (ImGui::CollapsingHeader("Post Processing", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Tone mapping", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::DragFloat("Exposure", &app_state.frame_data.exposure, 0.001f, 0.001f, 8.0f);
         }
@@ -113,6 +120,17 @@ namespace
             ImGui::Checkbox("Enabled###SSAO", std::bit_cast<bool *>(&app_state.frame_data.ssao_enabled));
             ImGui::DragFloat("Radius", &app_state.frame_data.ssao_radius, 0.001f, 0.001f, 1.0f);
             ImGui::DragFloat("Bias", &app_state.frame_data.ssao_bias, 0.001f, 0.001f, 0.1f);
+        }
+
+        if (ImGui::CollapsingHeader("SSR", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Checkbox("Enabled###SSR", std::bit_cast<bool *>(&app_state.frame_data.ssr_enabled));
+            ImGui::DragFloat("Intensity", &app_state.frame_data.ssr_reflection_intensity, 0.01f, 0.01f, 5.0f);
+            ImGui::DragFloat("Min Mask", &app_state.frame_data.ssr_min_mask, 0.001f, 0.0f, 1.0f);
+            ImGui::DragFloat("Max Mask", &app_state.frame_data.ssr_max_mask, 0.001f, 0.0f, 1.0f);
+            ImGui::DragFloat("Screen Edge Fade", &app_state.frame_data.ssr_screen_edge_fade, 0.01f, 0.0f, 1.0f);
+            ImGui::DragFloat("Max Distance", &app_state.frame_data.ssr_max_distance, 1.0f, 1.0f, 500.0f);
+            ImGui::DragInt("Max Samples", &app_state.frame_data.ssr_num_samples, 1, 1, 512);
         }
 
         ImGui::End();

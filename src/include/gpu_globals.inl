@@ -36,6 +36,14 @@ struct GPUFrameData
     daxa_b32 ssao_enabled;
     daxa_f32 ssao_radius;
     daxa_f32 ssao_bias;
+
+    daxa_b32 ssr_enabled;
+    daxa_f32 ssr_min_mask;
+    daxa_f32 ssr_max_mask;
+    daxa_f32 ssr_reflection_intensity;
+    daxa_f32 ssr_screen_edge_fade;
+    daxa_i32 ssr_num_samples;
+    daxa_f32 ssr_max_distance;
 };
 DAXA_DECL_BUFFER_PTR(GPUFrameData);
 

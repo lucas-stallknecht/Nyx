@@ -1,9 +1,12 @@
+#ifndef GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
 #include "camera.hpp"
 #include <fmt/core.h>
 
 void Camera::update_proj(f32 aspect_ratio)
 {
-    proj = glm::perspective(glm::radians(fov), aspect_ratio, near, far);
+    proj = glm::perspective(glm::radians(fov), aspect_ratio, far, near);
     proj[1][1] *= -1.0f; // Flip for Vulkan clip space
 }
 

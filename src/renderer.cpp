@@ -6,6 +6,7 @@
 #include "postprocess/ssao.inl"
 #include "postprocess/composite.inl"
 #include "postprocess/blur.inl"
+#include "postprocess/ssr.inl"
 #include "gpu_context.hpp"
 #include "utils/upload.hpp"
 #include <fmt/core.h>
@@ -37,7 +38,7 @@ namespace
     daxa::ImageInfo make_slim_gbuffer_indo(Window const & w)
     {
         return {
-            .format = daxa::Format::R8G8B8A8_UNORM,
+            .format = daxa::Format::R16G16B16A16_UNORM,
             .size = {.x = w.width, .y = w.height, .z = 1},
             .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
                      daxa::ImageUsageFlagBits::SHADER_STORAGE,
@@ -82,6 +83,7 @@ void Renderer::init(Window const & window)
     blur_pipeline = gpu.pipeline_manager.add_compute_pipeline2(blur_pipeline_info()).value();
     opaque_pipeline = gpu.pipeline_manager.add_raster_pipeline2(opaque_pipeline_info()).value();
     transparent_pipeline = gpu.pipeline_manager.add_raster_pipeline2(transparent_pipeline_info()).value();
+    ssr_pipeline = gpu.pipeline_manager.add_compute_pipeline2(ssr_pipeline_info()).value();
     composite_pipeline = gpu.pipeline_manager.add_compute_pipeline2(composite_pipeline_info()).value();
 
     fmt::println("[Renderer] Shaders ready");
@@ -125,6 +127,10 @@ void Renderer::init_resources(Window const & window)
     t_draw_image = daxa::ExternalTaskImage({
         .image = gpu.device.create_image(make_draw_info(window)),
         .name = "task draw image",
+    });
+    t_draw_image_bis = daxa::ExternalTaskImage({
+        .image = gpu.device.create_image(make_draw_info(window)),
+        .name = "task draw image bis",
     });
     t_depth_image = daxa::ExternalTaskImage({
         .image = gpu.device.create_image(make_depth_info(window)),
@@ -186,6 +192,7 @@ void Renderer::init_task_graphs()
 
     loop_task_graph.register_image(gpu.t_swapchain_image);
     loop_task_graph.register_image(t_draw_image);
+    loop_task_graph.register_image(t_draw_image_bis);
     loop_task_graph.register_image(t_depth_image);
     loop_task_graph.register_image(t_shadow_map);
     loop_task_graph.register_image(t_ssao_image);
@@ -228,10 +235,19 @@ void Renderer::init_task_graphs()
                 .ssao_image = t_ssao_blurred_image.view(),
             })
             .executes(forward_callback, opaque_pipeline.get(), transparent_pipeline.get(), &scene, global_buffer));
+    loop_task_graph.add_task(daxa::ComputeTask("ssr")
+                                 .uses_head<SSRHead::Info>()
+                                 .head_views({
+                                     .depth_image = t_depth_image.view(),
+                                     .slim_gbuffer = t_slim_gbuffer.view(),
+                                     .input_image = t_draw_image.view(),
+                                     .output_image = t_draw_image_bis.view(),
+                                 })
+                                 .executes(ssr_callback, ssr_pipeline.get(), global_buffer));
     loop_task_graph.add_task(daxa::ComputeTask("composition")
                                  .uses_head<CompositeHead::Info>()
                                  .head_views({
-                                     .draw_image = t_draw_image.view(),
+                                     .draw_image = t_draw_image_bis.view(),
                                      .output_image = gpu.t_swapchain_image.view(),
                                  })
                                  .executes(composite_callback, composite_pipeline.get(), global_buffer));
@@ -345,6 +361,8 @@ void Renderer::resize_resources(Window const & window)
     t_depth_image.set_image(gpu.device.create_image(make_depth_info(window)));
     gpu.device.destroy_image(t_draw_image.info().image);
     t_draw_image.set_image(gpu.device.create_image(make_draw_info(window)));
+    gpu.device.destroy_image(t_draw_image_bis.info().image);
+    t_draw_image_bis.set_image(gpu.device.create_image(make_draw_info(window)));
     gpu.device.destroy_image(t_ssao_image.info().image);
     t_ssao_image.set_image(gpu.device.create_image(make_ssao_info(window)));
     gpu.device.destroy_image(t_ssao_blurred_image.info().image);
@@ -367,6 +385,7 @@ void Renderer::cleanup() const
     gpu.device.destroy_image(t_slim_gbuffer.info().image);
     gpu.device.destroy_image(t_shadow_map.info().image);
     gpu.device.destroy_image(t_draw_image.info().image);
+    gpu.device.destroy_image(t_draw_image_bis.info().image);
     gpu.device.destroy_image(t_ssao_image.info().image);
     gpu.device.destroy_image(t_ssao_blurred_image.info().image);
     gpu.device.destroy_image(ssao_noise_image);

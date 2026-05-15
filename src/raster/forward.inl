@@ -39,6 +39,7 @@ inline daxa::RasterPipelineCompileInfo2 opaque_pipeline_info()
             daxa::DepthTestInfo{
                 .depth_attachment_format = daxa::Format::D32_SFLOAT,
                 .enable_depth_write = true,
+                .depth_test_compare_op = daxa::CompareOp::GREATER_OR_EQUAL,
             },
         .raster =
             {
@@ -91,7 +92,7 @@ inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
                     daxa::RenderAttachmentInfo{
                         .image_view = ti.view(AT.depth_target),
                         .load_op = daxa::AttachmentLoadOp::CLEAR,
-                        .clear_value = daxa::DepthValue{.depth = 1.0f, .stencil = 0},
+                        .clear_value = daxa::DepthValue{.depth = 0.0f, .stencil = 0},
                     },
                 .render_area = {.width = size.x, .height = size.y},
             });

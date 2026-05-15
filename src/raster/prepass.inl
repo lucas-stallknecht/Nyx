@@ -7,7 +7,9 @@
 struct PrepassPC
 {
     daxa_f32mat4x4 model_matrix;
+    daxa_u32 material_idx;
     daxa_BufferPtr(GPUGlobals) global_buffer;
+    daxa_BufferPtr(GPUMaterial) material_buffer;
     daxa_BufferPtr(Vertex) vertex_buffer;
 };
 
@@ -23,11 +25,12 @@ inline daxa::RasterPipelineCompileInfo2 prepass_pipeline_info()
     return {
         .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/prepass.glsl"}},
         .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/prepass.glsl"}},
-        .color_attachments = {{.format = daxa::Format::R8G8B8A8_UNORM}},
+        .color_attachments = {{.format = daxa::Format::R16G16B16A16_UNORM}},
         .depth_test =
             daxa::DepthTestInfo{
                 .depth_attachment_format = daxa::Format::D32_SFLOAT,
                 .enable_depth_write = true,
+                .depth_test_compare_op = daxa::CompareOp::GREATER_OR_EQUAL,
             },
         .raster =
             {
@@ -58,7 +61,7 @@ inline void prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
                                                  daxa::RenderAttachmentInfo{
                                                      .image_view = ti.view(depth_target),
                                                      .load_op = daxa::AttachmentLoadOp::CLEAR,
-                                                     .clear_value = daxa::DepthValue{.depth = 1.0f, .stencil = 0},
+                                                     .clear_value = daxa::DepthValue{.depth = 0.0f, .stencil = 0},
                                                  },
                                              .render_area = {.width = size.x, .height = size.y},
                                          });
@@ -77,6 +80,8 @@ inline void prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
         cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;
+        push.material_buffer = draw.material_buffer;
+        push.material_idx = draw.material_idx;
         cr.push_constant(push);
         cr.draw_indexed({.index_count = draw.index_count, .first_index = draw.first_index});
         gpu.stats.drawcall_count++;

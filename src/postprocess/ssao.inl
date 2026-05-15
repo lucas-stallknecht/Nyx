@@ -33,7 +33,7 @@ inline daxa::ComputePipelineCompileInfo2 ssao_pipeline_info()
     return {
         .source = daxa::ShaderFile{"postprocess/ssao.glsl"},
         .push_constant_size = sizeof(SSAOPC),
-        .name = "compute ssao pipeline",
+        .name = "ssao pipeline",
     };
 }
 

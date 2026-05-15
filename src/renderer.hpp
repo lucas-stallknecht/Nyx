@@ -23,6 +23,7 @@ struct Renderer
     std::shared_ptr<daxa::ComputePipeline> blur_pipeline;
     std::shared_ptr<daxa::RasterPipeline> opaque_pipeline;
     std::shared_ptr<daxa::RasterPipeline> transparent_pipeline;
+    std::shared_ptr<daxa::ComputePipeline> ssr_pipeline;
     std::shared_ptr<daxa::ComputePipeline> composite_pipeline;
     daxa::SamplerId default_linear_sampler;
     daxa::SamplerId default_nearest_sampler;
@@ -35,6 +36,7 @@ struct Renderer
     daxa::BufferId ssao_kernel_buffer;
     daxa::ImageId ssao_noise_image;
     daxa::ExternalTaskImage t_draw_image;
+    daxa::ExternalTaskImage t_draw_image_bis;
     daxa::ExternalTaskImage t_depth_image;
     daxa::ExternalTaskImage t_slim_gbuffer;
     daxa::ExternalTaskImage t_shadow_map;
