@@ -25,6 +25,7 @@ struct Renderer
     std::shared_ptr<daxa::RasterPipeline> transparent_pipeline;
     std::shared_ptr<daxa::ComputePipeline> composite_pipeline;
     daxa::SamplerId default_linear_sampler;
+    daxa::SamplerId default_nearest_sampler;
     daxa::SamplerId shadow_sampler;
     daxa::SamplerId ssao_noise_sampler;
     daxa::BufferId camera_buffer;
@@ -39,6 +40,7 @@ struct Renderer
     daxa::ExternalTaskImage t_ssao_image;
     daxa::ExternalTaskImage t_ssao_blurred_image;
     daxa::TaskGraph loop_task_graph;
+    daxa::TaskGraphDebugUi task_graph_debug_ui;
 
     void init(Window const & window);
     void cleanup() const;

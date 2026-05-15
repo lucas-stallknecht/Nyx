@@ -67,8 +67,7 @@ namespace
             .mip_level_count = texture->numLevels,
             .array_layer_count = 1,
             .sample_count = 1,
-            .usage = daxa::ImageUsageFlagBits::TRANSFER_DST | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
-                     daxa::ImageUsageFlagBits::SHADER_STORAGE,
+            .usage = daxa::ImageUsageFlagBits::TRANSFER_DST | daxa::ImageUsageFlagBits::SHADER_SAMPLED,
             .name = "texture",
         };
 

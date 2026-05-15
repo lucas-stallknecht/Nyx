@@ -39,7 +39,7 @@ namespace
         return {
             .format = daxa::Format::R16_SFLOAT,
             .size = {.x = w.width, .y = w.height, .z = 1},
-            .usage = daxa::ImageUsageFlagBits::SHADER_STORAGE,
+            .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::SHADER_STORAGE,
             .name = "ssao image",
         };
     }
@@ -77,6 +77,11 @@ void Renderer::init(Window const & window)
     fmt::println("[Renderer] Shaders ready");
 
     init_task_graphs();
+    task_graph_debug_ui = daxa::TaskGraphDebugUi({
+        .device = gpu.device,
+        .imgui_renderer = imgui_renderer,
+        .buffer_layout_cache_folder = "./tg_dbg_cache",
+    });
 }
 
 void Renderer::init_resources(Window const & window)
@@ -91,6 +96,13 @@ void Renderer::init_resources(Window const & window)
         .enable_anisotropy = true,
         .max_anisotropy = 8.0f,
         .name = "default linear sampler",
+    });
+    default_nearest_sampler = gpu.device.create_sampler({
+        .magnification_filter = daxa::Filter::NEAREST,
+        .minification_filter = daxa::Filter::NEAREST,
+        .address_mode_u = daxa::SamplerAddressMode::REPEAT,
+        .address_mode_v = daxa::SamplerAddressMode::REPEAT,
+        .name = "default nearest sampler",
     });
     shadow_sampler = gpu.device.create_sampler({
         .magnification_filter = daxa::Filter::LINEAR,
@@ -143,6 +155,7 @@ void Renderer::init_resources(Window const & window)
     auto * buffer_ptr = gpu.device.buffer_host_address_as<GPUGlobals>(global_buffer).value();
     *buffer_ptr = {
         .default_linear_sampler = default_linear_sampler,
+        .default_nearest_sampler = default_nearest_sampler,
         .shadow_sampler = shadow_sampler,
         .camera_buffer = gpu.device.device_address(camera_buffer).value(),
         .frame_data_buffer = gpu.device.device_address(frame_data_buffer).value(),
@@ -183,7 +196,7 @@ void Renderer::init_task_graphs()
                                      .input_image = t_ssao_image.view(),
                                      .blurred_image = t_ssao_blurred_image.view(),
                                  })
-                                 .executes(blur_callback, blur_pipeline.get()));
+                                 .executes(blur_callback, blur_pipeline.get(), global_buffer));
     loop_task_graph.add_task(
         daxa::RasterTask("draw shadow depth")
             .depth_stencil_attachment.writes(t_shadow_map.view())
@@ -210,6 +223,7 @@ void Renderer::init_task_graphs()
                                  .executes(
                                      [this, cv = gpu.t_swapchain_image.view()](daxa::TaskInterface ti)
                                      {
+                                         bool tg_debug_ui_open = task_graph_debug_ui.update(loop_task_graph);
                                          ImGui::Render();
                                          daxa::Extent3D size = ti.info(cv).value().size;
                                          imgui_renderer.record_commands(daxa::ImGuiRecordCommandsInfo{
@@ -269,14 +283,15 @@ void Renderer::init_ssao()
                                                                   .memory_flags = daxa::MemoryFlagBits::NONE,
                                                                   .name = "ssao kernel buffer",
                                                               });
-    ssao_noise_image = session.create_image(noise.data(), SSAO_N_ROTATIONS * sizeof(daxa_f32vec3), {},
-                                            {
-                                                .dimensions = 2,
-                                                .format = daxa::Format::R16G16B16_SFLOAT,
-                                                .size = {.x = SSAO_NOISE_DIM, .y = SSAO_NOISE_DIM, .z = 1},
-                                                .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED,
-                                                .name = "ssao noise image",
-                                            });
+    ssao_noise_image = session.create_image(
+        noise.data(), SSAO_N_ROTATIONS * sizeof(daxa_f32vec3), {},
+        {
+            .dimensions = 2,
+            .format = daxa::Format::R16G16B16A16_SFLOAT,
+            .size = {.x = SSAO_NOISE_DIM, .y = SSAO_NOISE_DIM, .z = 1},
+            .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::TRANSFER_DST,
+            .name = "ssao noise image",
+        });
     session.flush();
 
     ssao_noise_sampler = gpu.device.create_sampler({
@@ -304,7 +319,7 @@ void Renderer::render(FrameUniforms const & uniforms, Scene const & s)
     scene = &s;
     *gpu.device.buffer_host_address_as<GPUCamera>(camera_buffer).value() = uniforms.camera;
     *gpu.device.buffer_host_address_as<GPUFrameData>(frame_data_buffer).value() = uniforms.frame_data;
-    loop_task_graph.execute({});
+    loop_task_graph.execute({.debug_ui = &task_graph_debug_ui});
 }
 
 void Renderer::resize_resources(Window const & window)
@@ -322,6 +337,7 @@ void Renderer::resize_resources(Window const & window)
 void Renderer::cleanup() const
 {
     gpu.device.destroy_sampler(default_linear_sampler);
+    gpu.device.destroy_sampler(default_nearest_sampler);
     gpu.device.destroy_sampler(shadow_sampler);
     gpu.device.destroy_sampler(ssao_noise_sampler);
     gpu.device.destroy_buffer(camera_buffer);

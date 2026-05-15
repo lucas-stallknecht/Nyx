@@ -5,12 +5,13 @@
 #include <daxa/utils/task_graph.inl>
 
 DAXA_DECL_RASTER_TASK_HEAD_BEGIN(BlurHead)
-DAXA_TH_IMAGE_ID(COMPUTE_SHADER::READ, REGULAR_2D, input_image)
+DAXA_TH_IMAGE_ID(COMPUTE_SHADER::SAMPLE, REGULAR_2D, input_image)
 DAXA_TH_IMAGE_ID(COMPUTE_SHADER::WRITE, REGULAR_2D, blurred_image)
 DAXA_DECL_TASK_HEAD_END
 
 struct BlurPC
 {
+    daxa_BufferPtr(GPUGlobals) global_buffer;
     DAXA_TH_BLOB(BlurHead, attachments)
 };
 
@@ -28,7 +29,7 @@ inline daxa::ComputePipelineCompileInfo2 blur_pipeline_info()
     };
 }
 
-inline void blur_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline)
+inline void blur_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline, daxa::BufferId global_buffer)
 {
     auto const & AT = BlurHead::Info::AT;
     daxa::Extent3D size = ti.info(AT.input_image).value().size;
@@ -36,6 +37,7 @@ inline void blur_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * 
 
     cr.set_pipeline(*pipeline);
     cr.push_constant(BlurPC{
+        .global_buffer = ti.device.device_address(global_buffer).value(),
         .attachments = ti.attachment_shader_blob,
     });
     cr.dispatch({

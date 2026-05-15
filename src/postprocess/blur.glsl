@@ -10,18 +10,21 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 void main()
 {
+    GPUGlobals global = deref(push.global_buffer);
+
     ivec2 tex_coords = ivec2(gl_GlobalInvocationID.xy);
     ivec2 size = imageSize(daxa_image2D(push.attachments.input_image));
     if (tex_coords.x >= size.x || tex_coords.y >= size.y)
         return;
 
+    vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
+    vec2 texel = 1.0 / vec2(size);
+
     float result = 0.0;
     for (int x = -2; x < 2; x++) {
         for (int y = -2; y < 2; y++) {
             ivec2 offset = ivec2(x, y);
-            ivec2 sample_coords = tex_coords + offset;
-            sample_coords = clamp(sample_coords, ivec2(0), size - 1);
-            result += imageLoad(daxa_image2D(push.attachments.input_image), sample_coords).r;
+            result += texture(daxa_sampler2D(push.attachments.input_image, global.default_nearest_sampler), uv + offset * texel).r;
         }
     }
 
