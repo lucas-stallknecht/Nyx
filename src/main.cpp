@@ -34,7 +34,7 @@ namespace
                 .dir_light_direction = {0.25f, 1.0f, 0.1f},
                 .dir_light_intensity = 5.0f,
                 .dir_light_color = {1.0f, 1.0f, 1.0f},
-                .num_point_lights = 1,
+                .num_point_lights = 0,
                 .pcf_enabled = true,
                 .exposure = 1.0f,
                 .ssao_enabled = true,
@@ -78,15 +78,6 @@ namespace
             ImGui::ColorEdit3("Color###dir", &app_state.frame_data.dir_light_color.x);
         }
 
-        if (ImGui::CollapsingHeader("Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            ImGui::Checkbox("PCF Enabled", std::bit_cast<bool *>(&app_state.frame_data.pcf_enabled));
-            ImGui::DragFloat("Light Distance", &app_state.light_distance, 0.1f, 1.0f, 200.0f);
-            ImGui::DragFloat("Shadow Range", &app_state.shadow_range, 0.1f, 1.0f, 200.0f);
-            ImGui::DragFloat("Shadow Near", &app_state.shadow_near, 0.01f, 0.001f, 20.0f);
-            ImGui::DragFloat("Shadow Far", &app_state.shadow_far, 0.1f, 1.0f, 500.0f);
-        }
-
         if (ImGui::CollapsingHeader("Point lights", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::SliderInt("Count", reinterpret_cast<int *>(&app_state.frame_data.num_point_lights), 0,
@@ -108,6 +99,15 @@ namespace
                 }
                 ImGui::PopID();
             }
+        }
+
+        if (ImGui::CollapsingHeader("Directional Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Checkbox("PCF Enabled", std::bit_cast<bool *>(&app_state.frame_data.pcf_enabled));
+            ImGui::DragFloat("Light Distance", &app_state.light_distance, 0.1f, 1.0f, 200.0f);
+            ImGui::DragFloat("Shadow Range", &app_state.shadow_range, 0.1f, 1.0f, 200.0f);
+            ImGui::DragFloat("Shadow Near", &app_state.shadow_near, 0.01f, 0.001f, 20.0f);
+            ImGui::DragFloat("Shadow Far", &app_state.shadow_far, 0.1f, 1.0f, 500.0f);
         }
 
         if (ImGui::CollapsingHeader("Tone mapping", ImGuiTreeNodeFlags_DefaultOpen))

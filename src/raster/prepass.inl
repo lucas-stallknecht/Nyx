@@ -54,7 +54,7 @@ inline void prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
                                                      daxa::RenderAttachmentInfo{
                                                          .image_view = ti.view(color_target),
                                                          .load_op = daxa::AttachmentLoadOp::CLEAR,
-                                                         .clear_value = std::array<daxa::f32, 4>{0.0, 0.0, 0.0, 1.0},
+                                                         .clear_value = std::array<daxa::f32, 4>{0.0, 0.0, 0.0, 0.0},
                                                      },
                                                  },
                                              .depth_attachment =

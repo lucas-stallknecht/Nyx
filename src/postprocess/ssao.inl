@@ -37,9 +37,15 @@ inline daxa::ComputePipelineCompileInfo2 ssao_pipeline_info()
     };
 }
 
-inline void ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline, daxa::BufferId global_buffer,
-                          daxa::BufferId kernel_buffer, daxa::ImageId noise_image, daxa::SamplerId noise_sampler)
+inline void ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline,
+                          GPUFrameData const ** frame_data, daxa::BufferId global_buffer, daxa::BufferId kernel_buffer,
+                          daxa::ImageId noise_image, daxa::SamplerId noise_sampler)
 {
+    if (!(*frame_data)->ssao_enabled)
+    {
+        return;
+    }
+
     auto const & AT = SSAOHead::Info::AT;
     daxa::Extent3D size = ti.info(AT.depth_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;

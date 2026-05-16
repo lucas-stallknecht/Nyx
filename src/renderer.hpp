@@ -36,12 +36,12 @@ struct Renderer
     daxa::BufferId ssao_kernel_buffer;
     daxa::ImageId ssao_noise_image;
     daxa::ExternalTaskImage t_draw_image;
-    daxa::ExternalTaskImage t_draw_image_bis;
     daxa::ExternalTaskImage t_depth_image;
     daxa::ExternalTaskImage t_slim_gbuffer;
     daxa::ExternalTaskImage t_shadow_map;
     daxa::ExternalTaskImage t_ssao_image;
     daxa::ExternalTaskImage t_ssao_blurred_image;
+    daxa::ExternalTaskImage t_ssr_image;
     daxa::TaskGraph loop_task_graph;
     daxa::TaskGraphDebugUi task_graph_debug_ui;
 
@@ -53,6 +53,7 @@ struct Renderer
 
   private:
     Scene const * scene = nullptr;
+    GPUFrameData const * frame_data = nullptr;
     void init_resources(Window const & window);
     void init_task_graphs();
     void init_ssao();

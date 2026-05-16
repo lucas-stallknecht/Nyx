@@ -8,7 +8,7 @@ DAXA_DECL_RASTER_TASK_HEAD_BEGIN(SSRHead)
 DAXA_TH_IMAGE_ID(COMPUTE_SHADER::SAMPLE, REGULAR_2D, depth_image)
 DAXA_TH_IMAGE_ID(COMPUTE_SHADER::SAMPLE, REGULAR_2D, slim_gbuffer)
 DAXA_TH_IMAGE_ID(COMPUTE_SHADER::SAMPLE, REGULAR_2D, input_image)
-DAXA_TH_IMAGE_ID(COMPUTE_SHADER::WRITE, REGULAR_2D, output_image)
+DAXA_TH_IMAGE_ID(COMPUTE_SHADER::WRITE, REGULAR_2D, ssr_image)
 DAXA_DECL_TASK_HEAD_END
 
 struct SSRPC
@@ -31,8 +31,14 @@ inline daxa::ComputePipelineCompileInfo2 ssr_pipeline_info()
     };
 }
 
-inline void ssr_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline, daxa::BufferId global_buffer)
+inline void ssr_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline,
+                         GPUFrameData const ** frame_data, daxa::BufferId global_buffer)
 {
+    if (!(*frame_data)->ssr_enabled)
+    {
+        return;
+    }
+
     auto const & AT = SSRHead::Info::AT;
     daxa::Extent3D size = ti.info(AT.depth_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;

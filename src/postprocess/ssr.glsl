@@ -40,9 +40,9 @@ void main()
     if (gbuffer_value.a < frame_data.ssr_min_mask)
     {
         imageStore(
-            daxa_image2D(push.attachments.output_image),
+            daxa_image2D(push.attachments.ssr_image),
             tex_coords,
-            vec4(original_col, 1.0)
+            vec4(0.0)
         );
         return;
     }
@@ -106,27 +106,8 @@ void main()
     }
 
     vec3 reflection = vec3(0.0);
-    // Improve precision by sampling intermediates
-    // with binary search
     if (hit)
     {
-        vec3 hi = pos;
-        vec3 lo = pos - ts_dir;
-
-        for (int j = 0; j < 5; j++)
-        {
-            vec3 mid = 0.5 * (hi + lo);
-            float d = texture(
-                    daxa_sampler2D(push.attachments.depth_image, global.default_nearest_sampler),
-                    mid.xy
-                ).r;
-
-            if (d < mid.z)
-                hi = mid;
-            else
-                lo = mid;
-        }
-        pos = hi;
         reflection = texture(
                 daxa_sampler2D(push.attachments.input_image, global.default_nearest_sampler),
                 pos.xy
@@ -136,9 +117,9 @@ void main()
     }
 
     imageStore(
-        daxa_image2D(push.attachments.output_image),
+        daxa_image2D(push.attachments.ssr_image),
         tex_coords,
-        vec4(mix(original_col, original_col + reflection, gbuffer_value.a), 1.0)
+        vec4(mix(vec3(0.0), reflection, gbuffer_value.a), 1.0)
     );
 }
 

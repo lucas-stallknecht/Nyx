@@ -36,6 +36,10 @@ void main()
     if (tex_coords.x >= size.x || tex_coords.y >= size.y) return;
 
     vec3 hdr_col = imageLoad(daxa_image2D(push.attachments.draw_image), tex_coords).rgb;
+
+    if (frame_data.ssr_enabled) {
+        hdr_col += imageLoad(daxa_image2D(push.attachments.ssr_image), tex_coords).rgb;
+    }
     // Tone mapping
     vec3 out_col = hdr_col * frame_data.exposure;
     out_col = ACES_film(out_col);

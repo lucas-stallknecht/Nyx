@@ -40,6 +40,10 @@ void main()
     GPUCamera cam = deref(global.camera_buffer);
     GPUFrameData frame_data = deref(global.frame_data_buffer);
 
+    out_color = vec4(0.5 + 0.5 * normalize(f_in.normal), 1.0);
+
+    if (!frame_data.ssr_enabled) ;
+
     float roughness = mat.roughness;
     float metallic = mat.metallic;
 
@@ -54,8 +58,7 @@ void main()
     float rough = 1.0 - roughness * roughness;
     float ssr_mask = fresnel * rough;
     ssr_mask = min(ssr_mask, frame_data.ssr_max_mask);
-
-    out_color = vec4(0.5 + 0.5 * normalize(f_in.normal), ssr_mask);
+    out_color.a = ssr_mask;
 }
 
 #endif
