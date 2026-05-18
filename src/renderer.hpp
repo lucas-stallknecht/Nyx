@@ -24,6 +24,7 @@ struct Renderer
     std::shared_ptr<daxa::ComputePipeline> gaussian_blur_pipeline;
     std::shared_ptr<daxa::RasterPipeline> opaque_pipeline;
     std::shared_ptr<daxa::RasterPipeline> transparent_pipeline;
+    std::shared_ptr<daxa::RasterPipeline> debug_wireframe_pipeline;
     std::shared_ptr<daxa::ComputePipeline> ssr_pipeline;
     std::shared_ptr<daxa::ComputePipeline> composite_pipeline;
     daxa::SamplerId default_linear_sampler;

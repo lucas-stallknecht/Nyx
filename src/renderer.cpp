@@ -3,6 +3,7 @@
 #include "raster/prepass.inl"
 #include "raster/shadow_mapping.inl"
 #include "raster/forward.inl"
+#include "raster/debug_wireframe.inl"
 #include "postprocess/ssao.inl"
 #include "postprocess/composite.inl"
 #include "postprocess/blur.inl"
@@ -98,6 +99,7 @@ void Renderer::init(Window const & window)
     gaussian_blur_pipeline = gpu.pipeline_manager.add_compute_pipeline2(gaussian_blur_pipeline_info()).value();
     opaque_pipeline = gpu.pipeline_manager.add_raster_pipeline2(opaque_pipeline_info()).value();
     transparent_pipeline = gpu.pipeline_manager.add_raster_pipeline2(transparent_pipeline_info()).value();
+    debug_wireframe_pipeline = gpu.pipeline_manager.add_raster_pipeline2(debug_wireframe_pipeline_info()).value();
     ssr_pipeline = gpu.pipeline_manager.add_compute_pipeline2(ssr_pipeline_info()).value();
     composite_pipeline = gpu.pipeline_manager.add_compute_pipeline2(composite_pipeline_info()).value();
 
@@ -269,6 +271,10 @@ void Renderer::init_task_graphs()
                 .ssao_image = t_ssao_blurred_image.view(),
             })
             .executes(forward_callback, opaque_pipeline.get(), transparent_pipeline.get(), &scene, global_buffer));
+    loop_task_graph.add_task(daxa::RasterTask("draw debug wireframes")
+                                 .color_attachment.writes(t_draw_image.view())
+                                 .executes(debug_wireframe_callback, debug_wireframe_pipeline.get(), &scene,
+                                           global_buffer, t_draw_image.view()));
     loop_task_graph.add_task(daxa::ComputeTask("blur brightpass")
                                  .compute_shader.reads(t_brightcolor_image.view())
                                  .compute_shader.writes(t_brightcolor_blurred_images[0].view())

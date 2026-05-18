@@ -21,7 +21,7 @@ namespace
         quat q = quat(trs.rotation.w(), trs.rotation.x(), trs.rotation.y(), trs.rotation.z());
         mat4 R = glm::toMat4(q);
 
-        mat4 S = glm::scale(glm::mat4(1.0f), vec3(trs.scale.x(), trs.scale.y(), trs.scale.z()));
+        mat4 S = glm::scale(mat4(1.0f), vec3(trs.scale.x(), trs.scale.y(), trs.scale.z()));
 
         return T * R * S;
     }
@@ -310,10 +310,10 @@ namespace utils::gltf
     {
         std::vector<Node> out = {};
 
-        auto transform_of = [](fastgltf::Node const & node) -> glm::mat4
+        auto transform_of = [](fastgltf::Node const & node) -> mat4
         {
             return std::visit(
-                [&](auto const & t) -> glm::mat4
+                [&](auto const & t) -> mat4
                 {
                     using T = std::decay_t<decltype(t)>;
 

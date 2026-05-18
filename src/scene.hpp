@@ -24,10 +24,18 @@ struct TransparentDrawCall : DrawCall
     f32 distance_to_camera = 0.0f;
 };
 
+struct DebugDrawCall
+{
+    daxa_b32 culled = false;
+    daxa_f32mat4x4 transform = {};
+};
+
 struct Scene
 {
+    bool draw_aabb = false;
     std::vector<DrawCall> opaque_draws = {};
     std::vector<TransparentDrawCall> transparent_draws = {};
+    std::vector<DebugDrawCall> debug_draws = {};
 
     void update(Camera const & camera);
     void clear();

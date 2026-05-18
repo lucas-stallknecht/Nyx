@@ -9,7 +9,7 @@ namespace
 {
     struct Plane
     {
-        glm::vec3 normal = {0.f, 1.f, 0.f};
+        vec3 normal = {0.f, 1.f, 0.f};
         f32 distance = 0.f;
     };
     struct Frustum
@@ -88,21 +88,39 @@ namespace
                test_plane(f.near) && test_plane(f.far);
     }
 
+    daxa_f32mat4x4 build_debug_draw_transform_impl(vec3 const & aabb_min, vec3 const & aabb_max)
+    {
+        vec3 world_center = (aabb_min + aabb_max) * 0.5f;
+        vec3 world_extents = aabb_max - aabb_min;
+        mat4 debug_T = glm::translate(mat4(1.0f), world_center);
+        mat4 debug_S = glm::scale(mat4(1.0f), world_extents);
+        return std::bit_cast<daxa_f32mat4x4>(debug_T * debug_S);
+    }
 } // namespace
 
 void Scene::clear()
 {
     opaque_draws.clear();
     transparent_draws.clear();
+    debug_draws.clear();
 }
 
 void Scene::update(Camera const & camera)
 {
-    glm::mat4 proj_view = camera.get_proj() * camera.get_view();
+    debug_draws.clear();
+
+    mat4 proj_view = camera.get_proj() * camera.get_view();
     Frustum frusutm = extract_frustum_impl_fast(proj_view);
     for (auto & draw : opaque_draws)
     {
         draw.culled = !is_visible_impl(frusutm, draw.aabb_min, draw.aabb_max);
+        if (draw_aabb)
+        {
+            debug_draws.emplace_back(DebugDrawCall{
+                .culled = draw.culled,
+                .transform = build_debug_draw_transform_impl(draw.aabb_min, draw.aabb_max),
+            });
+        }
     }
 
     for (auto & draw : transparent_draws)
@@ -111,6 +129,13 @@ void Scene::update(Camera const & camera)
         if (!draw.culled)
         {
             draw.distance_to_camera = glm::length(vec3(std::bit_cast<mat4>(draw.transform)[3]) - camera.position);
+        }
+        if (draw_aabb)
+        {
+            debug_draws.emplace_back(DebugDrawCall{
+                .culled = draw.culled,
+                .transform = build_debug_draw_transform_impl(draw.aabb_min, draw.aabb_max),
+            });
         }
     }
 
@@ -151,10 +176,10 @@ int Scene::add_model(Model const & model)
         for (auto const & sub : mesh.sub_meshes)
         {
             // Build AABB min and max from local
-            glm::vec3 world_center = glm::vec3(transform * glm::vec4(sub.bounds_origin, 1.0f));
-            glm::vec3 world_extents = glm::abs(transform[0]) * sub.bounds_extents.x +
-                                      glm::abs(transform[1]) * sub.bounds_extents.y +
-                                      glm::abs(transform[2]) * sub.bounds_extents.z;
+            vec3 world_center = vec3(transform * vec4(sub.bounds_origin, 1.0f));
+            vec3 world_extents = glm::abs(transform[0]) * sub.bounds_extents.x +
+                                 glm::abs(transform[1]) * sub.bounds_extents.y +
+                                 glm::abs(transform[2]) * sub.bounds_extents.z;
             DrawCall base_draw = {
                 .index_buffer = mesh.index_buffer,
                 .material_buffer = mb_addr,

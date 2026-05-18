@@ -52,7 +52,7 @@ namespace
             },
     };
 
-    void update_ui(f32 dt)
+    void update_ui(f32 dt, Scene & scene)
     {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -63,6 +63,7 @@ namespace
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::Combo("Debug View", &app_state.frame_data.debug_view, DEBUG_VIEW_NAMES, IM_ARRAYSIZE(DEBUG_VIEW_NAMES));
+        ImGui::Checkbox("Draw Bounding Boxes", &scene.draw_aabb);
         ImGui::Spacing();
         ImGui::Spacing();
         ImGui::Spacing();
@@ -279,7 +280,7 @@ int main()
         ImGuiIO & io = ImGui::GetIO();
         f32 dt = io.DeltaTime;
         handle_inputs(window, dt);
-        update_ui(dt);
+        update_ui(dt, scene);
 
         scene.update(app_state.camera);
         renderer.render(build_frame_uniforms(), scene);
