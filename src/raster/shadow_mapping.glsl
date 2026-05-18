@@ -10,7 +10,7 @@ void main()
 {
     Vertex vert = deref_i(push.vertex_buffer, gl_VertexIndex);
     GPUGlobals global = deref(push.global_buffer);
-    GPUFrameData frame_data = deref(global.frame_data_buffer);
+    GPUFrameData frame_data = global.frame_data;
     gl_Position = frame_data.dir_light_matrix * push.model_matrix * vec4(vert.position, 1.0);
 }
 

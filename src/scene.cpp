@@ -10,7 +10,7 @@ namespace
     struct Plane
     {
         vec3 normal = {0.f, 1.f, 0.f};
-        f32 distance = 0.f;
+        f32  distance = 0.f;
     };
     struct Frustum
     {
@@ -109,11 +109,11 @@ void Scene::update(Camera const & camera)
 {
     debug_draws.clear();
 
-    mat4 proj_view = camera.get_proj() * camera.get_view();
-    Frustum frusutm = extract_frustum_impl_fast(proj_view);
+    mat4    proj_view = camera.get_proj() * camera.get_view();
+    Frustum frustum = extract_frustum_impl_fast(proj_view);
     for (auto & draw : opaque_draws)
     {
-        draw.culled = !is_visible_impl(frusutm, draw.aabb_min, draw.aabb_max);
+        draw.culled = !is_visible_impl(frustum, draw.aabb_min, draw.aabb_max);
         if (draw_aabb)
         {
             debug_draws.emplace_back(DebugDrawCall{
@@ -125,7 +125,7 @@ void Scene::update(Camera const & camera)
 
     for (auto & draw : transparent_draws)
     {
-        draw.culled = !is_visible_impl(frusutm, draw.aabb_min, draw.aabb_max);
+        draw.culled = !is_visible_impl(frustum, draw.aabb_min, draw.aabb_max);
         if (!draw.culled)
         {
             draw.distance_to_camera = glm::length(vec3(std::bit_cast<mat4>(draw.transform)[3]) - camera.position);
@@ -168,18 +168,18 @@ int Scene::add_model(Model const & model)
             continue;
         }
 
-        Mesh const & mesh = model.meshes[static_cast<usize>(node.mesh_idx)];
-        mat4 const & transform = world_transforms.back();
+        Mesh const &        mesh = model.meshes[static_cast<usize>(node.mesh_idx)];
+        mat4 const &        transform = world_transforms.back();
         daxa::DeviceAddress vb_addr = gpu.device.device_address(mesh.vertex_buffer).value();
         daxa::DeviceAddress mb_addr = gpu.device.device_address(model.material_buffer).value();
 
         for (auto const & sub : mesh.sub_meshes)
         {
             // Build AABB min and max from local
-            vec3 world_center = vec3(transform * vec4(sub.bounds_origin, 1.0f));
-            vec3 world_extents = glm::abs(transform[0]) * sub.bounds_extents.x +
-                                 glm::abs(transform[1]) * sub.bounds_extents.y +
-                                 glm::abs(transform[2]) * sub.bounds_extents.z;
+            vec3     world_center = vec3(transform * vec4(sub.bounds_origin, 1.0f));
+            vec3     world_extents = glm::abs(transform[0]) * sub.bounds_extents.x +
+                                     glm::abs(transform[1]) * sub.bounds_extents.y +
+                                     glm::abs(transform[2]) * sub.bounds_extents.z;
             DrawCall base_draw = {
                 .index_buffer = mesh.index_buffer,
                 .material_buffer = mb_addr,

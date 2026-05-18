@@ -20,8 +20,8 @@ struct UploadSession
     daxa::CommandRecorder recorder;
 
     daxa::BufferId create_buffer(void const * data, daxa::BufferInfo const & info);
-    daxa::ImageId create_image(void const * data, usize size, std::span<ImageMipInfo> mip_infos,
-                               daxa::ImageInfo const & info);
+    daxa::ImageId  create_image(void const * data, usize size, std::span<ImageMipInfo> mip_infos,
+                                daxa::ImageInfo const & info);
 
     // Submit all recorded commands, block until the GPU is done, and free staging
     // memory. Call exactly once when all uploads in this session are recorded

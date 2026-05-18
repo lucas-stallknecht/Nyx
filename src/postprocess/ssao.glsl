@@ -32,8 +32,8 @@ void main()
         return;
 
     GPUGlobals global = deref(push.global_buffer);
-    GPUFrameData frame_data = deref(global.frame_data_buffer);
-    GPUCamera cam = deref(global.camera_buffer);
+    GPUFrameData frame_data = global.frame_data;
+    GPUCamera cam = global.camera;
 
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
 

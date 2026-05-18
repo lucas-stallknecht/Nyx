@@ -99,7 +99,7 @@ std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view
         });
     }
 
-    constexpr auto extensions = fastgltf::Extensions::KHR_texture_basisu;
+    constexpr auto   extensions = fastgltf::Extensions::KHR_texture_basisu;
     fastgltf::Parser parser{extensions};
 
     constexpr auto options = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble |

@@ -91,11 +91,14 @@ std::expected<void, std::string> Window::init()
     return {};
 }
 
-void Window::cleanup()
+Window::~Window()
 {
-    glfwDestroyWindow(glfw_window_ptr);
-    glfwTerminate();
-    glfw_window_ptr = nullptr;
+    if (glfw_window_ptr != nullptr)
+    {
+        glfwDestroyWindow(glfw_window_ptr);
+        glfwTerminate();
+        glfw_window_ptr = nullptr;
+    }
 }
 
 daxa::NativeWindowInfo Window::get_native_window_info() const

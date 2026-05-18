@@ -37,7 +37,7 @@ const ivec2 EDGES[12] = ivec2[](
 void main()
 {
     GPUGlobals global = deref(push.global_buffer);
-    GPUCamera cam = deref(global.camera_buffer);
+    GPUCamera cam = global.camera;
 
     uint edge_index = uint(gl_VertexIndex) / 2;
     uint endpoint = uint(gl_VertexIndex) % 2;

@@ -1,3 +1,6 @@
+#ifndef GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
 #include "renderer.hpp"
 
 #include "raster/prepass.inl"
@@ -12,8 +15,10 @@
 #include "gpu_context.hpp"
 #include "utils/upload.hpp"
 #include <fmt/core.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include <imgui.h>
 #include <random>
+#include <bit>
 
 namespace
 {
@@ -82,6 +87,8 @@ namespace
 
 void Renderer::init(Window const & window)
 {
+    assert(!initialized && "Renderer already initialized");
+    assert(window.glfw_window_ptr && "Window must be initialized before Renderer");
     imgui_renderer = daxa::ImGuiRenderer({
         .device = gpu.device,
         .format = gpu.swapchain.get_format(),
@@ -111,6 +118,8 @@ void Renderer::init(Window const & window)
         .imgui_renderer = imgui_renderer,
         .buffer_layout_cache_folder = "./tg_dbg_cache",
     });
+
+    initialized = true;
 }
 
 void Renderer::init_resources(Window const & window)
@@ -168,29 +177,11 @@ void Renderer::init_resources(Window const & window)
         .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
         .name = "global rendering buffer",
     });
-    camera_buffer = gpu.device.create_buffer({
-        .size = sizeof(GPUCamera),
-        .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
-        .name = "camera buffer",
-    });
-    frame_data_buffer = gpu.device.create_buffer({
-        .size = sizeof(GPUFrameData),
-        .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
-        .name = "frame data buffer",
-    });
-    auto * buffer_ptr = gpu.device.buffer_host_address_as<GPUGlobals>(global_buffer).value();
-    *buffer_ptr = {
-        .default_linear_sampler = default_linear_sampler,
-        .default_nearest_sampler = default_nearest_sampler,
-        .shadow_sampler = shadow_sampler,
-        .camera_buffer = gpu.device.device_address(camera_buffer).value(),
-        .frame_data_buffer = gpu.device.device_address(frame_data_buffer).value(),
-    };
 }
 
 void Renderer::create_resizable_image(Window const & window, daxa::ExternalTaskImage & t_image,
                                       std::function<daxa::ImageInfo(Window const & w)> const & info_create,
-                                      std::string const & name)
+                                      std::string const &                                      name)
 {
     t_image = daxa::ExternalTaskImage({
         .image = gpu.device.create_image(info_create(window)),
@@ -316,7 +307,7 @@ void Renderer::init_ssao()
 {
 
     std::random_device rd;
-    auto gen = std::mt19937(rd());
+    auto               gen = std::mt19937(rd());
 
     auto dist01 = std::uniform_real_distribution<float>(0.0f, 1.0f);
     auto dist_neg_pos = std::uniform_real_distribution<float>(-1.0f, 1.0f);
@@ -375,7 +366,7 @@ void Renderer::init_ssao()
     });
 }
 
-void Renderer::render(FrameUniforms const & uniforms, Scene const & s)
+void Renderer::render(Camera const & camera, Scene const & s)
 {
     daxa::ImageId new_image = gpu.swapchain.acquire_next_image();
     if (new_image.is_empty())
@@ -387,11 +378,44 @@ void Renderer::render(FrameUniforms const & uniforms, Scene const & s)
     gpu.stats.drawcall_count = 0;
     gpu.stats.triangle_count = 0;
 
-    // Update internal lookups
+    mat4 const cam_proj = camera.get_proj();
+    mat4 const cam_view = camera.get_view();
+    GPUCamera  gpu_camera = {
+        .proj = std::bit_cast<daxa_f32mat4x4>(cam_proj),
+        .inv_proj = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_proj)),
+        .view = std::bit_cast<daxa_f32mat4x4>(cam_view),
+        .inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_view)),
+        .position = std::bit_cast<daxa_f32vec3>(camera.position),
+    };
+
+    // Frustum Culling DEBUG OVERRIDE
+    if (frame_data.debug_view == static_cast<int>(DebugView::FrustumCulling))
+    {
+        vec3 focus = vec3(0.0f);
+        vec3 debug_pos = focus + vec3(0.0f, 30.0f, 30.0f);
+        mat4 debug_view = glm::lookAt(debug_pos, focus, vec3(0.0f, 1.0f, 0.0f));
+        gpu_camera.view = std::bit_cast<daxa_f32mat4x4>(debug_view);
+        gpu_camera.inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(debug_view));
+        gpu_camera.position = std::bit_cast<daxa_f32vec3>(debug_pos);
+    }
+
+    vec3 const light_dir = glm::normalize(std::bit_cast<vec3>(frame_data.dir_light_direction));
+    mat4 const light_proj =
+        glm::ortho(-shadow_range, shadow_range, -shadow_range, shadow_range, shadow_near, shadow_far);
+    mat4 const light_view = glm::lookAt(light_distance * light_dir, {}, vec3(0.0f, 1.0f, 0.0f));
+    frame_data.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
+    frame_data.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
+    *gpu.device.buffer_host_address_as<GPUGlobals>(global_buffer).value() = GPUGlobals{
+        .default_linear_sampler = default_linear_sampler,
+        .default_nearest_sampler = default_nearest_sampler,
+        .shadow_sampler = shadow_sampler,
+        .camera = gpu_camera,
+        .frame_data = frame_data,
+    };
+
+    // Update scene internal lookup used in callbacks
     scene = &s;
-    frame_data = uniforms.frame_data;
-    *gpu.device.buffer_host_address_as<GPUCamera>(camera_buffer).value() = uniforms.camera;
-    *gpu.device.buffer_host_address_as<GPUFrameData>(frame_data_buffer).value() = uniforms.frame_data;
+
     loop_task_graph.execute({.debug_ui = &task_graph_debug_ui});
 }
 
@@ -404,14 +428,17 @@ void Renderer::resize_resources(Window const & window)
     }
 }
 
-void Renderer::cleanup() const
+Renderer::~Renderer()
 {
+    if (!initialized)
+    {
+        return;
+    }
+    gpu.device.wait_idle();
     gpu.device.destroy_sampler(default_linear_sampler);
     gpu.device.destroy_sampler(default_nearest_sampler);
     gpu.device.destroy_sampler(shadow_sampler);
     gpu.device.destroy_sampler(ssao_noise_sampler);
-    gpu.device.destroy_buffer(camera_buffer);
-    gpu.device.destroy_buffer(frame_data_buffer);
     gpu.device.destroy_buffer(global_buffer);
     gpu.device.destroy_buffer(ssao_kernel_buffer);
     gpu.device.destroy_image(t_shadow_map.info().image);

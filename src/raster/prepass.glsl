@@ -19,7 +19,7 @@ void main()
 {
     Vertex vert = deref_i(push.vertex_buffer, gl_VertexIndex);
     GPUGlobals global = deref(push.global_buffer);
-    GPUCamera cam = deref(global.camera_buffer);
+    GPUCamera cam = global.camera;
     vec4 world_pos = push.model_matrix * vec4(vert.position, 1.0);
     gl_Position = cam.proj * cam.view * world_pos;
     v_out.world_normal = normalize(mat3(push.model_matrix) * vert.normal);
@@ -37,12 +37,12 @@ void main()
 {
     GPUGlobals global = deref(push.global_buffer);
     GPUMaterial mat = deref_i(push.material_buffer, push.material_idx);
-    GPUCamera cam = deref(global.camera_buffer);
-    GPUFrameData frame_data = deref(global.frame_data_buffer);
+    GPUCamera cam = global.camera;
+    GPUFrameData frame_data = global.frame_data;
 
     out_color = vec4(0.5 + 0.5 * normalize(f_in.normal), 1.0);
 
-    if (!frame_data.ssr_enabled) ;
+    if (!frame_data.ssr_enabled) return;
 
     float roughness = mat.roughness;
     float metallic = mat.metallic;

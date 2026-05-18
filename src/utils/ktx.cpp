@@ -38,7 +38,7 @@ namespace
         image.mip_infos.reserve(texture->numLevels);
         for (u32 i = 0; i < texture->numLevels; ++i)
         {
-            ktx_size_t mip_offset = 0;
+            ktx_size_t     mip_offset = 0;
             KTX_error_code ret = ktxTexture2_GetImageOffset(texture, i, 0, 0, &mip_offset);
             if (ret != KTX_SUCCESS)
             {
@@ -83,7 +83,7 @@ namespace utils::ktx
 
     std::expected<ImageData, std::string> create_from_memory(ktx_uint8_t const * bytes, ktx_size_t size)
     {
-        ktxTexture2 * texture = nullptr;
+        ktxTexture2 *  texture = nullptr;
         KTX_error_code result =
             ktxTexture2_CreateFromMemory(bytes, size, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &texture);
 
@@ -96,7 +96,7 @@ namespace utils::ktx
 
     std::expected<ImageData, std::string> create_from_file(char const * filename)
     {
-        ktxTexture2 * texture = nullptr;
+        ktxTexture2 *  texture = nullptr;
         KTX_error_code result =
             ktxTexture2_CreateFromNamedFile(filename, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &texture);
 

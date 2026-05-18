@@ -21,3 +21,6 @@ AllowShortCaseLabelsOnASingleLine: true
 AllowShortBlocksOnASingleLine: false
 
 PointerAlignment: Middle
+
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: false

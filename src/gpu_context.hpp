@@ -13,15 +13,17 @@ struct RenderingStats
 
 struct GPUContext
 {
-    bool initialized = false;
-    daxa::Instance instance;
-    daxa::Device device;
-    daxa::Swapchain swapchain;
-    daxa::PipelineManager pipeline_manager;
+    daxa::Instance          instance;
+    daxa::Device            device;
+    daxa::Swapchain         swapchain;
+    daxa::PipelineManager   pipeline_manager;
     daxa::ExternalTaskImage t_swapchain_image;
-    RenderingStats stats = {};
+    RenderingStats          stats = {};
 
     void init(Window const & window);
+
+  private:
+    bool initialized = false;
 };
 
 extern GPUContext gpu;

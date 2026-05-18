@@ -25,24 +25,25 @@ enum class MouseState : u8
 
 struct Window
 {
-    u32 width = 1600;
-    u32 height = 900;
-    GLFWwindow * glfw_window_ptr = nullptr;
-    bool swapchain_out_of_date = false;
-    bool minimized = false;
+    ~Window();
+
+    u32                   width = 1600;
+    u32                   height = 900;
+    GLFWwindow *          glfw_window_ptr = nullptr;
+    bool                  swapchain_out_of_date = false;
+    bool                  minimized = false;
     std::array<bool, 512> pressed_keys = {false};
-    MouseState mouse_state = MouseState::Not_Captured;
-    vec2 last_mouse_position = {};
-    vec2 mouse_delta = {};
+    MouseState            mouse_state = MouseState::Not_Captured;
+    vec2                  last_mouse_position = {};
+    vec2                  mouse_delta = {};
 
     std::expected<void, std::string> init();
-    void cleanup();
-    bool should_close() const { return glfwWindowShouldClose(glfw_window_ptr); }
-    void update() const
+    bool                             should_close() const { return glfwWindowShouldClose(glfw_window_ptr); }
+    void                             update() const
     {
         glfwPollEvents();
         glfwSwapBuffers(glfw_window_ptr);
     }
     daxa::NativeWindowInfo get_native_window_info() const;
-    vec2 consume_mouse_delta();
+    vec2                   consume_mouse_delta();
 };

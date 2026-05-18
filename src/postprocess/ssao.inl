@@ -18,7 +18,7 @@ struct SSAOPC
 {
     daxa_BufferPtr(GPUGlobals) global_buffer;
     daxa_ImageViewId noise_image;
-    daxa_SamplerId noise_sampler;
+    daxa_SamplerId   noise_sampler;
     daxa_BufferPtr(vec3) kernel_buffer;
     DAXA_TH_BLOB(SSAOHead, attachments)
 };
@@ -46,8 +46,8 @@ inline void ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * 
         return;
     }
 
-    auto const & AT = SSAOHead::Info::AT;
-    daxa::Extent3D size = ti.info(AT.depth_image).value().size;
+    auto const &            AT = SSAOHead::Info::AT;
+    daxa::Extent3D          size = ti.info(AT.depth_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;
 
     cr.set_pipeline(*pipeline);

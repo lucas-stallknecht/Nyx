@@ -30,7 +30,7 @@ vec3 linear_to_srgb(vec3 x)
 void main()
 {
     GPUGlobals global = deref(push.global_buffer);
-    GPUFrameData frame_data = deref(global.frame_data_buffer);
+    GPUFrameData frame_data = global.frame_data;
     ivec2 tex_coords = ivec2(gl_GlobalInvocationID.xy);
     ivec2 size = imageSize(daxa_image2D(push.attachments.draw_image));
     if (tex_coords.x >= size.x || tex_coords.y >= size.y) return;

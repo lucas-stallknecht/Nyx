@@ -26,8 +26,8 @@ namespace
         return T * R * S;
     }
 
-    std::optional<usize> find_cached_image_from_texture_impl(fastgltf::Asset const & asset,
-                                                             fastgltf::Texture const & texture,
+    std::optional<usize> find_cached_image_from_texture_impl(fastgltf::Asset const &              asset,
+                                                             fastgltf::Texture const &            texture,
                                                              utils::gltf::LocalImageCache const & image_cache)
     {
         fastgltf::Image const * img = nullptr;
@@ -133,7 +133,7 @@ namespace utils::gltf
                         }
 
                         fastgltf::Accessor const & index_accessor = asset.accessors[prim.indicesAccessor.value()];
-                        auto const index_offset = static_cast<u32>(mesh.indices.size());
+                        auto const                 index_offset = static_cast<u32>(mesh.indices.size());
                         mesh.indices.resize(mesh.indices.size() + index_accessor.count);
 
                         // vertex_offset must be added per-index, thus the use of the lambda
@@ -184,7 +184,7 @@ namespace utils::gltf
 
     BuildImagesResult build_images(fastgltf::Asset & asset, std::filesystem::path const & gltf_path)
     {
-        usize const count = asset.images.size();
+        usize const       count = asset.images.size();
         BuildImagesResult out = {};
         out.images.resize(count); // pre-indexed 1:1 with asset.images
 
@@ -205,7 +205,7 @@ namespace utils::gltf
                             [&](fastgltf::sources::URI & uri)
                             {
                                 std::filesystem::path image_path = gltf_path.parent_path().append(uri.uri.path());
-                                auto img = utils::ktx::create_from_file(image_path.string().c_str());
+                                auto                  img = utils::ktx::create_from_file(image_path.string().c_str());
                                 if (img)
                                 {
                                     result = std::move(*img);
@@ -218,7 +218,7 @@ namespace utils::gltf
                             [&](fastgltf::sources::BufferView & view)
                             {
                                 fastgltf::BufferView & bv = asset.bufferViews[view.bufferViewIndex];
-                                fastgltf::Buffer & buf = asset.buffers[bv.bufferIndex];
+                                fastgltf::Buffer &     buf = asset.buffers[bv.bufferIndex];
                                 std::visit(
                                     fastgltf::visitor{[](auto const &) {},
                                                       [&](fastgltf::sources::Array & array)
@@ -258,13 +258,13 @@ namespace utils::gltf
 
     std::vector<GPUMaterial> build_materials(fastgltf::Asset & asset, LocalImageCache const & image_cache,
                                              std::vector<daxa::ImageId> const & images,
-                                             std::vector<bool> & out_transparent)
+                                             std::vector<bool> &                out_transparent)
     {
         // Resolve a texture index to its GPU view directly
         auto resolve = [&](std::size_t tex_idx) -> daxa_ImageViewId
         {
             fastgltf::Texture const & tex = asset.textures[tex_idx];
-            auto idx = find_cached_image_from_texture_impl(asset, tex, image_cache);
+            auto                      idx = find_cached_image_from_texture_impl(asset, tex, image_cache);
             if (idx && !images[*idx].is_empty())
             {
                 return images[*idx].default_view();
@@ -279,7 +279,7 @@ namespace utils::gltf
 
         for (auto const & gltf_mat : asset.materials)
         {
-            auto & col = gltf_mat.pbrData.baseColorFactor;
+            auto &      col = gltf_mat.pbrData.baseColorFactor;
             GPUMaterial mat = {};
             mat.base_color = {col.x(), col.y(), col.z(), col.w()};
             mat.metallic = gltf_mat.pbrData.metallicFactor;
