@@ -141,32 +141,7 @@ void Renderer::init_resources(Window const & window)
         .address_mode_v = daxa::SamplerAddressMode::CLAMP_TO_BORDER,
         .name = "shadow sampler",
     });
-    t_draw_image = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image(make_draw_info(window)),
-        .name = "task draw image",
-    });
-    t_brightcolor_image = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image(make_brightcolor_info(window)),
-        .name = "task bright color image",
-    });
-    t_brightcolor_blurred_images = {
-        daxa::ExternalTaskImage({
-            .image = gpu.device.create_image(make_brightcolor_info(window)),
-            .name = "task bright color blurred image 1",
-        }),
-        daxa::ExternalTaskImage({
-            .image = gpu.device.create_image(make_brightcolor_info(window)),
-            .name = "task bright color blurred image 2",
-        }),
-    };
-    t_depth_image = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image(make_depth_info(window)),
-        .name = "task depth image",
-    });
-    t_slim_gbuffer = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image(make_slim_gbuffer_indo(window)),
-        .name = "task slim gbuffer image",
-    });
+
     t_shadow_map = daxa::ExternalTaskImage({
         .image = gpu.device.create_image({
             .format = daxa::Format::D32_SFLOAT,
@@ -176,18 +151,18 @@ void Renderer::init_resources(Window const & window)
         }),
         .name = "task shadow map",
     });
-    t_ssao_image = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image(make_ssao_info(window)),
-        .name = "task ssao image",
-    });
-    t_ssao_blurred_image = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image(make_ssao_blur_info(window)),
-        .name = "task ssao blurred image",
-    });
-    t_ssr_image = daxa::ExternalTaskImage({
-        .image = gpu.device.create_image(make_ssr_info(window)),
-        .name = "task ssr image",
-    });
+    create_resizable_image(window, t_draw_image, make_draw_info, "task draw image");
+    create_resizable_image(window, t_brightcolor_image, make_brightcolor_info, "task bright color image");
+    create_resizable_image(window, t_depth_image, make_depth_info, "task depth image");
+    create_resizable_image(window, t_slim_gbuffer, make_slim_gbuffer_indo, "task slim gbuffer image");
+    create_resizable_image(window, t_ssao_image, make_ssao_info, "task ssao image");
+    create_resizable_image(window, t_ssao_blurred_image, make_ssao_blur_info, "task ssao blurred image");
+    create_resizable_image(window, t_ssr_image, make_ssr_info, "task ssr image");
+    create_resizable_image(window, t_brightcolor_blurred_images[0], make_brightcolor_info,
+                           "task bright color blurred image 1");
+    create_resizable_image(window, t_brightcolor_blurred_images[1], make_brightcolor_info,
+                           "task bright color blurred image 2");
+
     global_buffer = gpu.device.create_buffer({
         .size = sizeof(GPUGlobals),
         .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
@@ -211,6 +186,20 @@ void Renderer::init_resources(Window const & window)
         .camera_buffer = gpu.device.device_address(camera_buffer).value(),
         .frame_data_buffer = gpu.device.device_address(frame_data_buffer).value(),
     };
+}
+
+void Renderer::create_resizable_image(Window const & window, daxa::ExternalTaskImage & t_image,
+                                      std::function<daxa::ImageInfo(Window const & w)> const & info_create,
+                                      std::string const & name)
+{
+    t_image = daxa::ExternalTaskImage({
+        .image = gpu.device.create_image(info_create(window)),
+        .name = name,
+    });
+    resizable_iamges.emplace_back(ResizableImage{
+        .info_create = info_create,
+        .target_image = t_image,
+    });
 }
 
 void Renderer::init_task_graphs()
@@ -408,25 +397,11 @@ void Renderer::render(FrameUniforms const & uniforms, Scene const & s)
 
 void Renderer::resize_resources(Window const & window)
 {
-    // TODO: Automate resource resizing
-    gpu.device.destroy_image(t_depth_image.info().image);
-    t_depth_image.set_image(gpu.device.create_image(make_depth_info(window)));
-    gpu.device.destroy_image(t_draw_image.info().image);
-    t_draw_image.set_image(gpu.device.create_image(make_draw_info(window)));
-    gpu.device.destroy_image(t_brightcolor_image.info().image);
-    t_brightcolor_image.set_image(gpu.device.create_image(make_brightcolor_info(window)));
-    gpu.device.destroy_image(t_brightcolor_blurred_images[0].info().image);
-    gpu.device.destroy_image(t_brightcolor_blurred_images[1].info().image);
-    t_brightcolor_blurred_images[0].set_image(gpu.device.create_image(make_brightcolor_info(window)));
-    t_brightcolor_blurred_images[1].set_image(gpu.device.create_image(make_brightcolor_info(window)));
-    gpu.device.destroy_image(t_ssao_image.info().image);
-    t_ssao_image.set_image(gpu.device.create_image(make_ssao_info(window)));
-    gpu.device.destroy_image(t_ssao_blurred_image.info().image);
-    t_ssao_blurred_image.set_image(gpu.device.create_image(make_ssao_blur_info(window)));
-    gpu.device.destroy_image(t_slim_gbuffer.info().image);
-    t_slim_gbuffer.set_image(gpu.device.create_image(make_slim_gbuffer_indo(window)));
-    gpu.device.destroy_image(t_ssr_image.info().image);
-    t_ssr_image.set_image(gpu.device.create_image(make_ssr_info(window)));
+    for (auto & image : resizable_iamges)
+    {
+        gpu.device.destroy_image(image.target_image.info().image);
+        image.target_image.set_image(gpu.device.create_image(image.info_create(window)));
+    }
 }
 
 void Renderer::cleanup() const
@@ -439,15 +414,10 @@ void Renderer::cleanup() const
     gpu.device.destroy_buffer(frame_data_buffer);
     gpu.device.destroy_buffer(global_buffer);
     gpu.device.destroy_buffer(ssao_kernel_buffer);
-    gpu.device.destroy_image(t_depth_image.info().image);
-    gpu.device.destroy_image(t_slim_gbuffer.info().image);
     gpu.device.destroy_image(t_shadow_map.info().image);
-    gpu.device.destroy_image(t_draw_image.info().image);
-    gpu.device.destroy_image(t_brightcolor_image.info().image);
-    gpu.device.destroy_image(t_brightcolor_blurred_images[0].info().image);
-    gpu.device.destroy_image(t_brightcolor_blurred_images[1].info().image);
-    gpu.device.destroy_image(t_ssr_image.info().image);
-    gpu.device.destroy_image(t_ssao_image.info().image);
-    gpu.device.destroy_image(t_ssao_blurred_image.info().image);
     gpu.device.destroy_image(ssao_noise_image);
+    for (auto & image : resizable_iamges)
+    {
+        gpu.device.destroy_image(image.target_image.info().image);
+    }
 }

@@ -14,6 +14,12 @@ struct FrameUniforms
     GPUFrameData frame_data;
 };
 
+struct ResizableImage
+{
+    std::function<daxa::ImageInfo(Window const & w)> info_create;
+    daxa::ExternalTaskImage & target_image;
+};
+
 struct Renderer
 {
     daxa::ImGuiRenderer imgui_renderer;
@@ -39,7 +45,7 @@ struct Renderer
     daxa::ImageId ssao_noise_image;
     daxa::ExternalTaskImage t_draw_image;
     daxa::ExternalTaskImage t_brightcolor_image;
-    std::array<daxa::ExternalTaskImage, 2> t_brightcolor_blurred_images;
+    std::array<daxa::ExternalTaskImage, 2> t_brightcolor_blurred_images = {};
     daxa::ExternalTaskImage t_depth_image;
     daxa::ExternalTaskImage t_slim_gbuffer;
     daxa::ExternalTaskImage t_shadow_map;
@@ -59,7 +65,12 @@ struct Renderer
     Scene const * scene = nullptr;
     GPUFrameData frame_data = {};
     daxa_b32 blur_brightpass = true;
+    std::vector<ResizableImage> resizable_iamges = {};
+
     void init_resources(Window const & window);
     void init_task_graphs();
     void init_ssao();
+    void create_resizable_image(Window const & window, daxa::ExternalTaskImage & t_image,
+                                std::function<daxa::ImageInfo(Window const & w)> const & info_create,
+                                std::string const & name);
 };
