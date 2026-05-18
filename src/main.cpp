@@ -36,11 +36,13 @@ namespace
                 .dir_light_color = {1.0f, 1.0f, 1.0f},
                 .num_point_lights = 0,
                 .pcf_enabled = true,
+                .bloom_enabled = true,
+                .bloom_intensity = 1.0f,
                 .exposure = 1.0f,
                 .ssao_enabled = true,
                 .ssao_radius = 0.3f,
                 .ssao_bias = 0.001f,
-                .ssr_enabled = true,
+                .ssr_enabled = false,
                 .ssr_min_mask = 0.02f,
                 .ssr_max_mask = 1.0f,
                 .ssr_reflection_intensity = 1.0,
@@ -112,6 +114,8 @@ namespace
 
         if (ImGui::CollapsingHeader("Tone mapping", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            ImGui::Checkbox("Bloom enabled", std::bit_cast<bool *>(&app_state.frame_data.bloom_enabled));
+            ImGui::DragFloat("Bloom intensity", &app_state.frame_data.bloom_intensity, 0.001f, 0.001f, 5.0f);
             ImGui::DragFloat("Exposure", &app_state.frame_data.exposure, 0.001f, 0.001f, 8.0f);
         }
 
@@ -231,9 +235,9 @@ int main()
 
     Scene scene = {};
     std::vector<std::string> model_names = {
-        "crytek_sponza/crytek_sponza.gltf",
-        // "intel_sponza/intel_sponza_main.gltf",
-        // "intel_sponza/intel_sponza_curtains.gltf",
+        // "crytek_sponza/crytek_sponza.gltf",
+        "intel_sponza/intel_sponza_main.gltf",
+        "intel_sponza/intel_sponza_curtains.gltf",
     };
     for (auto const & name : model_names)
     {

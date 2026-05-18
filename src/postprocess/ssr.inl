@@ -31,10 +31,10 @@ inline daxa::ComputePipelineCompileInfo2 ssr_pipeline_info()
     };
 }
 
-inline void ssr_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline,
-                         GPUFrameData const ** frame_data, daxa::BufferId global_buffer)
+inline void ssr_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline, daxa_b32 const * enabled,
+                         daxa::BufferId global_buffer)
 {
-    if (!(*frame_data)->ssr_enabled)
+    if (!(*enabled))
     {
         return;
     }

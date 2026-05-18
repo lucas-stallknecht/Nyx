@@ -20,18 +20,18 @@ void main()
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
     vec2 texel = 1.0 / vec2(size);
 
-    float result = 0.0;
+    vec3 result = vec3(0.0);
     for (int x = -2; x < 2; x++) {
         for (int y = -2; y < 2; y++) {
             ivec2 offset = ivec2(x, y);
-            result += texture(daxa_sampler2D(push.attachments.input_image, global.default_nearest_sampler), uv + offset * texel).r;
+            result += texture(daxa_sampler2D(push.attachments.input_image, global.default_nearest_sampler), uv + offset * texel).rgb;
         }
     }
 
     imageStore(
         daxa_image2D(push.attachments.blurred_image),
         tex_coords,
-        vec4(result / 16.0, 0.0, 0.0, 1.0)
+        vec4(result / 16.0, 1.0)
     );
 }
 

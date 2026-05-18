@@ -21,6 +21,7 @@ struct Renderer
     std::shared_ptr<daxa::RasterPipeline> shadow_pipeline;
     std::shared_ptr<daxa::ComputePipeline> ssao_pipeline;
     std::shared_ptr<daxa::ComputePipeline> blur_pipeline;
+    std::shared_ptr<daxa::ComputePipeline> gaussian_blur_pipeline;
     std::shared_ptr<daxa::RasterPipeline> opaque_pipeline;
     std::shared_ptr<daxa::RasterPipeline> transparent_pipeline;
     std::shared_ptr<daxa::ComputePipeline> ssr_pipeline;
@@ -36,6 +37,8 @@ struct Renderer
     daxa::BufferId ssao_kernel_buffer;
     daxa::ImageId ssao_noise_image;
     daxa::ExternalTaskImage t_draw_image;
+    daxa::ExternalTaskImage t_brightcolor_image;
+    std::array<daxa::ExternalTaskImage, 2> t_brightcolor_blurred_images;
     daxa::ExternalTaskImage t_depth_image;
     daxa::ExternalTaskImage t_slim_gbuffer;
     daxa::ExternalTaskImage t_shadow_map;
@@ -53,7 +56,8 @@ struct Renderer
 
   private:
     Scene const * scene = nullptr;
-    GPUFrameData const * frame_data = nullptr;
+    GPUFrameData frame_data = {};
+    daxa_b32 blur_brightpass = true;
     void init_resources(Window const & window);
     void init_task_graphs();
     void init_ssao();

@@ -2,6 +2,10 @@
 #define PI 3.14159
 #endif
 
+float luma(vec3 color) {
+    return dot(color, vec3(0.299, 0.587, 0.114));
+}
+
 float distribution_ggx(float n_dot_h, float alpha) {
     float a2 = alpha * alpha;
     float ndh2 = n_dot_h * n_dot_h;

@@ -43,6 +43,7 @@ void main()
 
 layout(location = 0) in VOut f_in;
 layout(location = 0) out vec4 out_color;
+layout(location = 1) out vec4 out_bright_color;
 
 #define PI 3.14159
 #define EPSILON 0.0001
@@ -194,6 +195,13 @@ void main()
     }
 
     out_color = vec4(color, alpha);
+
+    if (luma(out_color.rgb) < 1.0) {
+        out_bright_color = vec4(vec3(0.0), alpha);
+    }
+    else {
+        out_bright_color = out_color;
+    }
 
     vec3 debug_col = get_debug_col(frame_data.debug_view, surface, ao, shadow);
     if (any(lessThan(debug_col, vec3(0.0)))) return;

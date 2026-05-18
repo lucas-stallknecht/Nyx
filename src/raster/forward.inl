@@ -6,6 +6,7 @@
 
 DAXA_DECL_RASTER_TASK_HEAD_BEGIN(ForwardPassHead)
 DAXA_TH_IMAGE(COLOR_ATTACHMENT, REGULAR_2D, color_target)
+DAXA_TH_IMAGE(COLOR_ATTACHMENT, REGULAR_2D, bright_color_target)
 DAXA_TH_IMAGE(DEPTH_ATTACHMENT, REGULAR_2D, depth_target)
 DAXA_TH_IMAGE_ID(FRAGMENT_SHADER::SAMPLE, REGULAR_2D, shadow_map)
 DAXA_TH_IMAGE_ID(FRAGMENT_SHADER::SAMPLE, REGULAR_2D, ssao_image)
@@ -34,7 +35,8 @@ inline daxa::RasterPipelineCompileInfo2 opaque_pipeline_info()
     return {
         .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/forward.glsl"}},
         .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/forward.glsl"}},
-        .color_attachments = {{.format = daxa::Format::R32G32B32A32_SFLOAT}},
+        .color_attachments = {{.format = daxa::Format::R32G32B32A32_SFLOAT},
+                              {.format = daxa::Format::R32G32B32A32_SFLOAT}},
         .depth_test =
             daxa::DepthTestInfo{
                 .depth_attachment_format = daxa::Format::D32_SFLOAT,
@@ -79,23 +81,29 @@ inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
     daxa::Extent3D size = ti.info(AT.color_target).value().size;
     daxa::RenderCommandRecorder cr =
         std::move(ti.recorder)
-            .begin_renderpass({
-                .color_attachments =
-                    std::array{
-                        daxa::RenderAttachmentInfo{
-                            .image_view = ti.view(AT.color_target),
-                            .load_op = daxa::AttachmentLoadOp::CLEAR,
-                            .clear_value = std::array<daxa::f32, 4>{0.463f, 0.706f, 0.80f, 1.0f},
+            .begin_renderpass(
+                {
+                    .color_attachments =
+                        std::array{
+                            daxa::RenderAttachmentInfo{
+                                .image_view = ti.view(AT.color_target),
+                                .load_op = daxa::AttachmentLoadOp::CLEAR,
+                                .clear_value = std::array<daxa::f32, 4>{0.463f, 0.706f, 0.80f, 1.0f},
+                            },
+                            daxa::RenderAttachmentInfo{
+                                .image_view = ti.view(AT.bright_color_target),
+                                .load_op = daxa::AttachmentLoadOp::CLEAR,
+                                .clear_value = std::array<daxa::f32, 4>{0.0f, 0.0f, 0.0f, 1.0f},
+                            },
                         },
-                    },
-                .depth_attachment =
-                    daxa::RenderAttachmentInfo{
-                        .image_view = ti.view(AT.depth_target),
-                        .load_op = daxa::AttachmentLoadOp::CLEAR,
-                        .clear_value = daxa::DepthValue{.depth = 0.0f, .stencil = 0},
-                    },
-                .render_area = {.width = size.x, .height = size.y},
-            });
+                    .depth_attachment =
+                        daxa::RenderAttachmentInfo{
+                            .image_view = ti.view(AT.depth_target),
+                            .load_op = daxa::AttachmentLoadOp::CLEAR,
+                            .clear_value = daxa::DepthValue{.depth = 0.0f, .stencil = 0},
+                        },
+                    .render_area = {.width = size.x, .height = size.y},
+                });
 
     ForwardPassPC push = {
         .global_buffer = ti.device.device_address(global_buffer).value(),

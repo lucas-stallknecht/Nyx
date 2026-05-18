@@ -29,13 +29,14 @@ inline daxa::ComputePipelineCompileInfo2 blur_pipeline_info()
     };
 }
 
-inline void blur_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline,
-                          GPUFrameData const ** frame_data, daxa::BufferId global_buffer)
+inline void blur_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline, daxa_b32 const * enabled,
+                          daxa::BufferId global_buffer)
 {
-    if (!(*frame_data)->ssao_enabled)
+    if (!(*enabled))
     {
         return;
     }
+
     auto const & AT = BlurHead::Info::AT;
     daxa::Extent3D size = ti.info(AT.input_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;

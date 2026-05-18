@@ -31,6 +31,8 @@ struct GPUFrameData
 
     daxa_b32 pcf_enabled;
 
+    daxa_b32 bloom_enabled;
+    daxa_f32 bloom_intensity;
     daxa_f32 exposure;
 
     daxa_b32 ssao_enabled;
