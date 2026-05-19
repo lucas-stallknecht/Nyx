@@ -54,7 +54,7 @@ inline void shadow_mapping_callback(daxa::TaskInterface ti, daxa::RasterPipeline
                                              .render_area = {.width = SHADOW_MAP_SIZE, .height = SHADOW_MAP_SIZE},
                                          });
     cr.set_pipeline(*pipeline);
-    cr.set_depth_bias({.constant_factor = -0.0025f, .slope_factor = 1.75f});
+    cr.set_depth_bias({.slope_factor = 1.75f});
 
     ShadowPassPC push = {
         .global_buffer = ti.device.device_address(global_buffer).value(),

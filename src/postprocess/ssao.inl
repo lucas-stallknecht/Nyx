@@ -4,7 +4,7 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#define SSAO_N_SAMPLES 64
+#define SSAO_N_SAMPLES 16
 #define SSAO_NOISE_DIM 4
 #define SSAO_N_ROTATIONS (SSAO_NOISE_DIM * SSAO_NOISE_DIM)
 

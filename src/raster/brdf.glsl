@@ -1,3 +1,6 @@
+#ifdef FORWARD_BRDF
+
+#define EPSILON 0.0001
 #ifndef PI
 #define PI 3.14159
 #endif
@@ -28,3 +31,32 @@ float geometry_smith(vec3 n, vec3 l, vec3 v, float k) {
 vec3 fresnel_schlick(float cos_theta, vec3 f0) {
     return f0 + (1.0 - f0) * pow(1.0 - cos_theta, 5.0);
 }
+
+vec3 brdf(Surface surface, vec3 v, vec3 l) {
+    vec3 h = normalize(v + l);
+    float n_dot_v = max(dot(surface.normal, v), 0.0);
+    float n_dot_h = max(dot(surface.normal, h), 0.0);
+    float n_dot_l = max(dot(surface.normal, l), 0.0);
+    float v_dot_h = max(dot(v, h), 0.0);
+
+    float alpha = surface.roughness * surface.roughness;
+    float D = distribution_ggx(n_dot_h, alpha);
+    float r = alpha + 1.0;
+    float k = (r * r) / 8.0;
+    float G = geometry_smith(surface.normal, l, v, k);
+    vec3 f0 = mix(vec3(0.04), surface.albedo, surface.metallic);
+    vec3 F = fresnel_schlick(v_dot_h, f0);
+
+    vec3 num = D * F * G;
+    float denom = 4.0 * n_dot_v * n_dot_l + EPSILON;
+    vec3 specular = num / denom;
+
+    vec3 diffuse = surface.albedo / PI;
+
+    vec3 k_specular = F;
+    vec3 k_diffuse = (1.0 - k_specular) * (1.0 - surface.metallic);
+
+    return k_diffuse * diffuse + specular;
+}
+
+#endif

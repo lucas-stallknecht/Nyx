@@ -3,6 +3,7 @@
 #endif
 #include "renderer.hpp"
 
+#include "gpu_debug.inl"
 #include "raster/prepass.inl"
 #include "raster/shadow_mapping.inl"
 #include "raster/forward.inl"
@@ -148,6 +149,8 @@ void Renderer::init_resources(Window const & window)
         .mipmap_filter = daxa::Filter::LINEAR,
         .address_mode_u = daxa::SamplerAddressMode::CLAMP_TO_BORDER,
         .address_mode_v = daxa::SamplerAddressMode::CLAMP_TO_BORDER,
+        .enable_compare = true,
+        .compare_op = daxa::CompareOp::GREATER_OR_EQUAL,
         .name = "shadow sampler",
     });
 

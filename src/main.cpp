@@ -55,9 +55,9 @@ namespace
 
                 if (ImGui::TreeNode("Point Light"))
                 {
+                    ImGui::DragFloat("Intensity", &light.intensity, 0.1f, 0.0f, 100.0f);
                     ImGui::DragFloat3("Position", &light.position.x, 0.05f);
                     ImGui::ColorEdit3("Color", &light.color.x);
-                    ImGui::DragFloat("Intensity", &light.intensity, 0.1f, 0.0f, 100.0f);
                     ImGui::DragFloat("Radius", &light.radius, 0.01f, 0.01f, 10.0f);
                     ImGui::TreePop();
                 }
@@ -65,7 +65,7 @@ namespace
             }
         }
 
-        if (ImGui::CollapsingHeader("Directional Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Directional Shadow", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Checkbox("PCF Enabled", std::bit_cast<bool *>(&renderer.frame_data.pcf_enabled));
             ImGui::DragFloat("Light Distance", &renderer.light_distance, 0.1f, 1.0f, 200.0f);
@@ -74,7 +74,7 @@ namespace
             ImGui::DragFloat("Shadow Far", &renderer.shadow_far, 0.1f, 1.0f, 500.0f);
         }
 
-        if (ImGui::CollapsingHeader("Tone mapping", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Post processing", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Checkbox("Bloom enabled", std::bit_cast<bool *>(&renderer.frame_data.bloom_enabled));
             ImGui::DragFloat("Bloom intensity", &renderer.frame_data.bloom_intensity, 0.001f, 0.001f, 5.0f);

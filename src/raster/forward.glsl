@@ -2,7 +2,6 @@
 
 #include "forward.inl"
 #include "shadow_mapping.inl"
-#include "brdf.glsl"
 
 DAXA_DECL_PUSH_CONSTANT(ForwardPassPC, push)
 
@@ -46,7 +45,6 @@ layout(location = 0) out vec4 out_color;
 layout(location = 1) out vec4 out_bright_color;
 
 #define PI 3.14159
-#define EPSILON 0.0001
 
 struct Surface {
     vec3 albedo;
@@ -57,33 +55,8 @@ struct Surface {
 
 #define FORWARD_DEBUG_VIEW
 #include "debug.glsl"
-
-vec3 brdf(Surface surface, vec3 v, vec3 l) {
-    vec3 h = normalize(v + l);
-    float n_dot_v = max(dot(surface.normal, v), 0.0);
-    float n_dot_h = max(dot(surface.normal, h), 0.0);
-    float n_dot_l = max(dot(surface.normal, l), 0.0);
-    float v_dot_h = max(dot(v, h), 0.0);
-
-    float alpha = surface.roughness * surface.roughness;
-    float D = distribution_ggx(n_dot_h, alpha);
-    float r = alpha + 1.0;
-    float k = (r * r) / 8.0;
-    float G = geometry_smith(surface.normal, l, v, k);
-    vec3 f0 = mix(vec3(0.04), surface.albedo, surface.metallic);
-    vec3 F = fresnel_schlick(v_dot_h, f0);
-
-    vec3 num = D * F * G;
-    float denom = 4.0 * n_dot_v * n_dot_l + EPSILON;
-    vec3 specular = num / denom;
-
-    vec3 diffuse = surface.albedo / PI;
-
-    vec3 k_specular = F;
-    vec3 k_diffuse = (1.0 - k_specular) * (1.0 - surface.metallic);
-
-    return k_diffuse * diffuse + specular;
-}
+#define FORWARD_BRDF
+#include "brdf.glsl"
 
 vec3 calc_directional_lighting(Surface surface, vec3 view_dir, vec3 light_dir, vec3 radiance) {
     vec3 brdf = brdf(surface, view_dir, light_dir);
@@ -91,8 +64,7 @@ vec3 calc_directional_lighting(Surface surface, vec3 view_dir, vec3 light_dir, v
     return brdf * radiance * max(dot(surface.normal, light_dir), 0.0);
 }
 
-float point_light_falloff(float d, float r)
-{
+float point_light_falloff(float d, float r) {
     float x = clamp(d / r, 0.0, 1.0);
     return 1.0 - (x * x * (3.0 - 2.0 * x));
 }
@@ -112,29 +84,24 @@ vec3 calc_point_lighting(Surface surface, PointLight light, vec3 view_dir) {
 }
 
 float calc_shadow(daxa_SamplerId shadow_sampler, bool pcf_enabled) {
+    // proj_coords in light NDC space
     vec3 proj_coords = f_in.light_space_pos.xyz / f_in.light_space_pos.w;
     float current_depth = proj_coords.z;
-    vec2 tex_coords = proj_coords.xy * 0.5 + 0.5; // [-1, 1] -> [0, 1]
+    vec2 tex_coords = proj_coords.xy * 0.5 + 0.5;
 
     if (!pcf_enabled) {
-        float closest_depth = texture(daxa_sampler2D(push.attachments.shadow_map, shadow_sampler), tex_coords).r;
-        return float(current_depth > closest_depth);
+        return texture(daxa_sampler2DShadow(push.attachments.shadow_map, shadow_sampler), vec3(tex_coords, current_depth));
     }
 
     vec2 texel_size = vec2(1.0) / float(SHADOW_MAP_SIZE);
     float shadow = 0.0;
-    for (int x = -1; x <= 1; x++)
-    {
-        for (int y = -1; y <= 1; y++)
-        {
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
             vec2 offset = vec2(x, y) * texel_size;
-            float closest_depth = texture(daxa_sampler2D(push.attachments.shadow_map, shadow_sampler), tex_coords + offset).r;
-            shadow += float(current_depth > closest_depth);
+            shadow += texture(daxa_sampler2DShadow(push.attachments.shadow_map, shadow_sampler), vec3(tex_coords + offset, current_depth));
         }
     }
-    shadow /= 9.0;
-
-    return max(shadow, 0.0);
+    return clamp(shadow / 9.0, 0.0, 1.0);
 }
 
 void main()
