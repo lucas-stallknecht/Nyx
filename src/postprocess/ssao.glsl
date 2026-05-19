@@ -52,7 +52,6 @@ void main()
             daxa_sampler2D(push.noise_image, push.noise_sampler),
             uv * noise_scale
         ).xyz;
-    random_vec = 0.1 * vec3(1.0, 1.0, 1.0);
     vec3 tangent = normalize(random_vec - view_normal * dot(random_vec, view_normal));
     vec3 bitangent = cross(view_normal, tangent);
     mat3 TBN = mat3(tangent, bitangent, view_normal);
