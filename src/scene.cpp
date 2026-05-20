@@ -142,6 +142,8 @@ void Scene::update(Camera const & camera)
     std::sort(transparent_draws.begin(), transparent_draws.end(),
               [](TransparentDrawCall const & a, TransparentDrawCall const & b)
               { return a.distance_to_camera > b.distance_to_camera; });
+    std::sort(opaque_draws.begin(), opaque_draws.end(),
+              [](DrawCall const & a, DrawCall const & b) { return a.index_buffer.index > b.index_buffer.index; });
 }
 
 int Scene::add_model(Model const & model)

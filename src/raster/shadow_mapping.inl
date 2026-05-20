@@ -60,9 +60,13 @@ inline void shadow_mapping_callback(daxa::TaskInterface ti, daxa::RasterPipeline
         .global_buffer = ti.device.device_address(global_buffer).value(),
     };
 
+    daxa::BufferId latest_buffer = {};
     for (auto const & draw : (*scene)->opaque_draws)
     {
-        cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
+        if (latest_buffer.is_empty() || latest_buffer != draw.index_buffer)
+        {
+            cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
+        }
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;
         cr.push_constant(push);

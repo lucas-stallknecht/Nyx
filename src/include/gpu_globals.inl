@@ -7,9 +7,9 @@
 struct PointLight
 {
     daxa_f32vec3 position;
-    daxa_f32 intensity;
+    daxa_f32     intensity;
     daxa_f32vec3 color;
-    daxa_f32 radius;
+    daxa_f32     radius;
 
 #ifdef __cplusplus
     PointLight() : position(0.0f, 0.0f, 0.0f), intensity(1.0f), color(1.0f, 1.0f, 1.0f), radius(0.2f) {}
@@ -20,14 +20,14 @@ struct GPUFrameData
 {
     daxa_i32 debug_view;
 
-    daxa_f32vec3 ambient_light_color;
-    daxa_f32 ambient_light_intensity;
-    daxa_f32vec3 dir_light_direction;
-    daxa_f32 dir_light_intensity;
-    daxa_f32vec3 dir_light_color;
+    daxa_f32vec3   ambient_light_color;
+    daxa_f32       ambient_light_intensity;
+    daxa_f32vec3   dir_light_direction;
+    daxa_f32       dir_light_intensity;
+    daxa_f32vec3   dir_light_color;
     daxa_f32mat4x4 dir_light_matrix;
-    daxa_u32 num_point_lights;
-    PointLight point_lights[MAX_POINT_LIGHTS];
+    daxa_u32       num_point_lights;
+    PointLight     point_lights[MAX_POINT_LIGHTS];
 
     daxa_b32 pcf_enabled;
 
@@ -53,7 +53,7 @@ struct GPUGlobals
     daxa_SamplerId default_linear_sampler;
     daxa_SamplerId default_nearest_sampler;
     daxa_SamplerId shadow_sampler;
-    GPUCamera camera;
-    GPUFrameData frame_data;
+    GPUCamera      camera;
+    GPUFrameData   frame_data;
 };
 DAXA_DECL_BUFFER_PTR(GPUGlobals);

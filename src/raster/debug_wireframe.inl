@@ -6,7 +6,7 @@
 
 struct DebugWireframePC
 {
-    daxa_b32 culled;
+    daxa_b32       culled;
     daxa_f32mat4x4 model_matrix;
     daxa_BufferPtr(GPUGlobals) global_buffer;
 };
@@ -46,7 +46,7 @@ inline void debug_wireframe_callback(daxa::TaskInterface ti, daxa::RasterPipelin
     {
         return;
     }
-    daxa::Extent3D size = ti.info(color_target).value().size;
+    daxa::Extent3D              size = ti.info(color_target).value().size;
     daxa::RenderCommandRecorder cr = std::move(ti.recorder)
                                          .begin_renderpass({
                                              .color_attachments =

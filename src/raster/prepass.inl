@@ -7,7 +7,7 @@
 struct PrepassPC
 {
     daxa_f32mat4x4 model_matrix;
-    daxa_u32 material_idx;
+    daxa_u32       material_idx;
     daxa_BufferPtr(GPUGlobals) global_buffer;
     daxa_BufferPtr(GPUMaterial) material_buffer;
     daxa_BufferPtr(Vertex) vertex_buffer;
@@ -46,7 +46,7 @@ inline void prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
                              daxa::TaskImageView depth_target, daxa::TaskImageView color_target,
                              daxa::BufferId global_buffer)
 {
-    daxa::Extent3D size = ti.info(depth_target).value().size;
+    daxa::Extent3D              size = ti.info(depth_target).value().size;
     daxa::RenderCommandRecorder cr = std::move(ti.recorder)
                                          .begin_renderpass({
                                              .color_attachments =
@@ -71,13 +71,17 @@ inline void prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
         .global_buffer = ti.device.device_address(global_buffer).value(),
     };
 
+    daxa::BufferId latest_buffer = {};
     for (auto const & draw : (*scene)->opaque_draws)
     {
         if (draw.culled)
         {
             continue;
         }
-        cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
+        if (latest_buffer.is_empty() || latest_buffer != draw.index_buffer)
+        {
+            cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
+        }
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;
         push.material_buffer = draw.material_buffer;
