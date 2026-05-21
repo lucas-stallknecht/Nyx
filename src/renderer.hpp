@@ -61,7 +61,7 @@ struct Renderer
         .bloom_intensity = 1.0f,
         .exposure = 1.0f,
         .ssao_enabled = true,
-        .ssao_radius = 0.3f,
+        .ssao_radius = 0.2f,
         .ssao_bias = 0.001f,
         .ssr_enabled = false,
         .ssr_min_mask = 0.02f,

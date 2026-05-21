@@ -8,7 +8,7 @@
 
 struct GaussianBlurPC
 {
-    daxa_b32 horizontal;
+    daxa_b32         horizontal;
     daxa_ImageViewId input_image;
     daxa_ImageViewId output_image;
     daxa_BufferPtr(GPUGlobals) global_buffer;
@@ -38,7 +38,7 @@ inline void gaussian_blur_callback(daxa::TaskInterface ti, daxa::ComputePipeline
         return;
     }
 
-    daxa::Extent3D size = ti.info(input_image).value().size;
+    daxa::Extent3D          size = ti.info(input_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;
 
     // Ping pong gaussian blur h -> v -> h
@@ -55,8 +55,8 @@ inline void gaussian_blur_callback(daxa::TaskInterface ti, daxa::ComputePipeline
             .global_buffer = ti.device.device_address(global_buffer).value(),
         });
         cr.dispatch({
-            .x = size.x / 8u,
-            .y = size.y / 8u,
+            .x = (size.x + 7u) / 8u,
+            .y = (size.y + 7u) / 8u,
             .z = 1,
         });
 

@@ -140,7 +140,7 @@ void main()
 
     float ao = 1.0;
     if (frame_data.ssao_enabled) {
-        vec2 ss_uv = gl_FragCoord.xy / imageSize(daxa_image2D(push.attachments.ssao_image));
+        vec2 ss_uv = gl_FragCoord.xy / push.draw_size;
         ao = texture(daxa_sampler2D(push.attachments.ssao_image, global.default_linear_sampler), ss_uv).r;
     }
     vec3 color = frame_data.ambient_light_intensity * frame_data.ambient_light_color * ao * surface.albedo;

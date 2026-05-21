@@ -15,6 +15,7 @@ DAXA_DECL_TASK_HEAD_END
 struct ForwardPassPC
 {
     daxa_f32mat4x4 model_matrix;
+    daxa_u32vec2   draw_size;
     daxa_u32       material_idx;
     daxa_BufferPtr(GPUGlobals) global_buffer;
     daxa_BufferPtr(GPUMaterial) material_buffer;
@@ -106,6 +107,7 @@ inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
                 });
 
     ForwardPassPC push = {
+        .draw_size = {.x = size.x, .y = size.y},
         .global_buffer = ti.device.device_address(global_buffer).value(),
         .attachments = ti.attachment_shader_blob,
     };

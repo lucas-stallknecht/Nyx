@@ -4,7 +4,7 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#define SSAO_N_SAMPLES 16
+#define SSAO_N_SAMPLES 32
 #define SSAO_NOISE_DIM 4
 #define SSAO_N_ROTATIONS (SSAO_NOISE_DIM * SSAO_NOISE_DIM)
 
@@ -47,7 +47,7 @@ inline void ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * 
     }
 
     auto const &            AT = SSAOHead::Info::AT;
-    daxa::Extent3D          size = ti.info(AT.depth_image).value().size;
+    daxa::Extent3D          size = ti.info(AT.ssao_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;
 
     cr.set_pipeline(*pipeline);
@@ -59,8 +59,8 @@ inline void ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * 
         .attachments = ti.attachment_shader_blob,
     });
     cr.dispatch({
-        .x = size.x / 8u,
-        .y = size.y / 8u,
+        .x = (size.x + 7u) / 8u,
+        .y = (size.y + 7u) / 8u,
         .z = 1,
     });
 }

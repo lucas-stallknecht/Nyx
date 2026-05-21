@@ -27,7 +27,7 @@ vec3 calc_view_position_from_uv(vec2 uv, mat4 inv_proj, daxa_SamplerId depth_sam
 void main()
 {
     ivec2 tex_coords = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 size = imageSize(daxa_image2D(push.attachments.depth_image));
+    ivec2 size = imageSize(daxa_image2D(push.attachments.ssao_image));
     if (tex_coords.x >= size.x || tex_coords.y >= size.y)
         return;
 

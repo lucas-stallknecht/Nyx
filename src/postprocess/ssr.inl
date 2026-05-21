@@ -39,8 +39,8 @@ inline void ssr_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * p
         return;
     }
 
-    auto const & AT = SSRHead::Info::AT;
-    daxa::Extent3D size = ti.info(AT.depth_image).value().size;
+    auto const &            AT = SSRHead::Info::AT;
+    daxa::Extent3D          size = ti.info(AT.depth_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;
 
     cr.set_pipeline(*pipeline);
@@ -49,8 +49,8 @@ inline void ssr_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * p
         .attachments = ti.attachment_shader_blob,
     });
     cr.dispatch({
-        .x = size.x / 8u,
-        .y = size.y / 8u,
+        .x = (size.x + 7u) / 8u,
+        .y = (size.y + 7u) / 8u,
         .z = 1,
     });
 }

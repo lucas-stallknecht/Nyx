@@ -34,8 +34,8 @@ inline daxa::ComputePipelineCompileInfo2 composite_pipeline_info()
 inline void composite_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline,
                                daxa::BufferId global_buffer)
 {
-    auto const & AT = CompositeHead::Info::AT;
-    daxa::Extent3D size = ti.info(AT.output_image).value().size;
+    auto const &            AT = CompositeHead::Info::AT;
+    daxa::Extent3D          size = ti.info(AT.output_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;
 
     cr.set_pipeline(*pipeline);
@@ -44,8 +44,8 @@ inline void composite_callback(daxa::TaskInterface ti, daxa::ComputePipeline con
         .attachments = ti.attachment_shader_blob,
     });
     cr.dispatch({
-        .x = size.x / 8u,
-        .y = size.y / 8u,
+        .x = (size.x + 7u) / 8u,
+        .y = (size.y + 7u) / 8u,
         .z = 1,
     });
 }

@@ -57,10 +57,16 @@ namespace
     {
         return {
             .format = daxa::Format::R16_SFLOAT,
-            .size = {.x = w.width, .y = w.height, .z = 1},
+            .size = {.x = w.width / 2, .y = w.height / 2, .z = 1},
             .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::SHADER_STORAGE,
             .name = "ssao image",
         };
+    }
+    daxa::ImageInfo make_ssao_blur_info(Window const & w)
+    {
+        daxa::ImageInfo info = make_ssao_info(w);
+        info.name = "ssao blurred image";
+        return info;
     }
     daxa::ImageInfo make_ssr_info(Window const & w)
     {
@@ -74,15 +80,6 @@ namespace
         daxa::ImageInfo info = make_draw_info(w);
         info.name = "bright parts image";
         return info;
-    }
-    daxa::ImageInfo make_ssao_blur_info(Window const & w)
-    {
-        return {
-            .format = daxa::Format::R16_SFLOAT,
-            .size = {.x = w.width, .y = w.height, .z = 1},
-            .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::SHADER_STORAGE,
-            .name = "ssao blurred image",
-        };
     }
 } // namespace
 
