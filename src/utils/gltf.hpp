@@ -12,12 +12,18 @@ namespace utils::gltf
         std::vector<ImageData> images = {};
         LocalImageCache        image_cache = {};
     };
+    using LocalSubMeshOffsets = std::vector<std::pair<i32, u32>>; // <offset, count>
+    struct MeshBuildResult
+    {
+        MeshData            mesh = {};
+        LocalSubMeshOffsets sub_meshes_offsets = {};
+    };
 
-    std::vector<MeshData>    build_meshes(fastgltf::Asset /* const */ & asset);
+    MeshBuildResult          build_meshes(fastgltf::Asset /* const */ & asset);
     BuildImagesResult        build_images(fastgltf::Asset /* const */ & asset, std::filesystem::path const & gltf_path);
     std::vector<GPUMaterial> build_materials(fastgltf::Asset & asset, LocalImageCache const & image_cache,
                                              std::vector<daxa::ImageId> const & images,
                                              std::vector<bool> &                out_transparent);
-    std::vector<Node>        build_nodes(fastgltf::Asset /* const */ & asset);
+    std::vector<Node> build_nodes(fastgltf::Asset /* const */ & asset, LocalSubMeshOffsets const & sub_meshes_offsets);
 
 }; // namespace utils::gltf

@@ -10,6 +10,7 @@
 #include <fmt/ranges.h>
 #include <imgui_impl_glfw.h>
 #include <imgui.h>
+#include <vulkan/vulkan.h>
 
 namespace
 {

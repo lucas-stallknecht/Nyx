@@ -21,11 +21,8 @@ namespace
     void destroy_model_gpu_resources_impl(Model & model)
     {
         gpu.device.destroy_buffer(model.material_buffer);
-        for (auto & mesh : model.meshes)
-        {
-            gpu.device.destroy_buffer(mesh.vertex_buffer);
-            gpu.device.destroy_buffer(mesh.index_buffer);
-        }
+        gpu.device.destroy_buffer(model.vertex_buffer);
+        gpu.device.destroy_buffer(model.index_buffer);
         for (auto & image : model.images)
         {
             gpu.device.destroy_image(image);
@@ -142,26 +139,20 @@ std::expected<Model *, LoadModelError> AssetManager::load_model(std::string_view
                                                     });
 
     // Meshes
-    std::vector<MeshData> meshes = utils::gltf::build_meshes(asset.get());
-    model.meshes.reserve(meshes.size());
-    for (auto & mesh_data : meshes)
-    {
-        model.meshes.push_back({
-            .vertex_buffer = session.create_buffer(mesh_data.vertices.data(),
-                                                   {
-                                                       .size = mesh_data.vertices.size() * sizeof(Vertex),
-                                                       .name = "vertex buffer",
-                                                   }),
-            .index_buffer = session.create_buffer(mesh_data.indices.data(),
-                                                  {
-                                                      .size = mesh_data.indices.size() * sizeof(u32),
-                                                      .name = "index buffer",
-                                                  }),
-            .sub_meshes = std::move(mesh_data.sub_meshes),
-        });
-    }
+    utils::gltf::MeshBuildResult mesh_result = utils::gltf::build_meshes(asset.get());
+    model.vertex_buffer = session.create_buffer(mesh_result.mesh.vertices.data(),
+                                                {
+                                                    .size = mesh_result.mesh.vertices.size() * sizeof(Vertex),
+                                                    .name = "vertex buffer",
+                                                });
+    model.index_buffer = session.create_buffer(mesh_result.mesh.indices.data(),
+                                               {
+                                                   .size = mesh_result.mesh.indices.size() * sizeof(u32),
+                                                   .name = "index buffer",
+                                               });
+    model.sub_meshes = std::move(mesh_result.mesh.sub_meshes);
 
-    model.nodes = utils::gltf::build_nodes(asset.get());
+    model.nodes = utils::gltf::build_nodes(asset.get(), mesh_result.sub_meshes_offsets);
 
     session.flush();
 

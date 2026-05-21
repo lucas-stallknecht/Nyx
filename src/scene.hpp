@@ -14,6 +14,7 @@ struct DrawCall
     daxa_f32mat4x4      transform = {};
     u32                 index_count = 0;
     u32                 first_index = 0;
+    u32                 vertex_offset = 0; // per-mesh base added to each index by the GPU
     u32                 material_idx = 0;
     vec3                aabb_min = {};
     vec3                aabb_max = {};

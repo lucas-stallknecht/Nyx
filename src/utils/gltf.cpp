@@ -68,7 +68,7 @@ namespace
 namespace utils::gltf
 {
 
-    std::vector<MeshData> build_meshes(fastgltf::Asset & asset)
+    MeshBuildResult build_meshes(fastgltf::Asset & asset)
     {
         // Each glTF mesh is independent
         std::vector<std::future<MeshData>> futures = {};
@@ -173,12 +173,39 @@ namespace utils::gltf
                 }));
         }
 
-        std::vector<MeshData> out = {};
-        out.reserve(futures.size());
-        for (auto & f : futures)
+        MeshBuildResult out = {};
+        out.sub_meshes_offsets.resize(asset.meshes.size());
+        for (usize mesh_idx = 0; mesh_idx < futures.size(); ++mesh_idx)
         {
-            out.push_back(f.get());
+            MeshData mesh = futures[mesh_idx].get();
+
+            // <offset, count>
+            out.sub_meshes_offsets[mesh_idx] = {static_cast<u32>(out.mesh.sub_meshes.size()),
+                                                static_cast<u32>(mesh.sub_meshes.size())};
+
+            auto vertex_base = static_cast<u32>(out.mesh.vertices.size());
+            auto index_base = static_cast<u32>(out.mesh.indices.size());
+
+            out.mesh.vertices.insert(out.mesh.vertices.end(), std::make_move_iterator(mesh.vertices.begin()),
+                                     std::make_move_iterator(mesh.vertices.end()));
+            // Indices stay local. vertex_base is forwarded to the draw command's vertexOffset
+            out.mesh.indices.insert(out.mesh.indices.end(), std::make_move_iterator(mesh.indices.begin()),
+                                    std::make_move_iterator(mesh.indices.end()));
+
+            // Append submeshes, remapping their index offsets into the global index buffer
+            for (auto const & sm : mesh.sub_meshes)
+            {
+                out.mesh.sub_meshes.emplace_back(SubMesh{
+                    .index_count = sm.index_count,
+                    .index_offset = index_base + sm.index_offset,
+                    .vertex_offset = vertex_base,
+                    .material_idx = sm.material_idx,
+                    .bounds_origin = sm.bounds_origin,
+                    .bounds_extents = sm.bounds_extents,
+                });
+            }
         }
+
         return out;
     }
 
@@ -306,7 +333,7 @@ namespace utils::gltf
         return out;
     }
 
-    std::vector<Node> build_nodes(fastgltf::Asset & asset)
+    std::vector<Node> build_nodes(fastgltf::Asset & asset, LocalSubMeshOffsets const & sub_meshes_offsets)
     {
         std::vector<Node> out = {};
 
@@ -331,11 +358,17 @@ namespace utils::gltf
 
         auto traverse = [&](this auto const & self, fastgltf::Node const & node, i32 parent_idx) -> void
         {
-            i32 node_idx = static_cast<i32>(out.size());
+            i32                 node_idx = static_cast<i32>(out.size());
+            std::pair<i32, u32> sm_offset = {-1, 0};
+            if (node.meshIndex.has_value())
+            {
+                sm_offset = sub_meshes_offsets[node.meshIndex.value()];
+            }
             out.push_back({
                 .local_transform = transform_of(node),
                 .parent_idx = parent_idx,
-                .mesh_idx = static_cast<i32>(node.meshIndex.value_or(-1)),
+                .sub_meshes_offset = sm_offset.first,
+                .sub_meshes_count = sm_offset.second,
             });
 
             for (auto child_idx : node.children)

@@ -148,7 +148,9 @@ void Scene::update(Camera const & camera)
 
 int Scene::add_model(Model const & model)
 {
-    int triangle_count = 0;
+    daxa::DeviceAddress vb_addr = gpu.device.device_address(model.vertex_buffer).value();
+    daxa::DeviceAddress mb_addr = gpu.device.device_address(model.material_buffer).value();
+    int                 triangle_count = 0;
     // Nodes in a glTF asset are guaranteed to be ordered so that a parent always
     // comes before its children in the list, making a single-pass accumulation safe.
     std::vector<mat4> world_transforms = {};
@@ -165,30 +167,30 @@ int Scene::add_model(Model const & model)
             world_transforms.push_back(world_transforms[static_cast<usize>(node.parent_idx)] * node.local_transform);
         }
 
-        if (node.mesh_idx < 0)
+        if (node.sub_meshes_count <= 0)
         {
             continue;
         }
 
-        Mesh const &        mesh = model.meshes[static_cast<usize>(node.mesh_idx)];
-        mat4 const &        transform = world_transforms.back();
-        daxa::DeviceAddress vb_addr = gpu.device.device_address(mesh.vertex_buffer).value();
-        daxa::DeviceAddress mb_addr = gpu.device.device_address(model.material_buffer).value();
+        mat4 const & transform = world_transforms.back();
 
-        for (auto const & sub : mesh.sub_meshes)
+        for (auto i = static_cast<usize>(node.sub_meshes_offset);
+             i < static_cast<usize>(node.sub_meshes_offset) + node.sub_meshes_count; i++)
         {
+            SubMesh const & sub = model.sub_meshes[i];
             // Build AABB min and max from local
-            vec3     world_center = vec3(transform * vec4(sub.bounds_origin, 1.0f));
-            vec3     world_extents = glm::abs(transform[0]) * sub.bounds_extents.x +
-                                     glm::abs(transform[1]) * sub.bounds_extents.y +
-                                     glm::abs(transform[2]) * sub.bounds_extents.z;
+            vec3 world_center = vec3(transform * vec4(sub.bounds_origin, 1.0f));
+            vec3 world_extents = glm::abs(transform[0]) * sub.bounds_extents.x +
+                                 glm::abs(transform[1]) * sub.bounds_extents.y +
+                                 glm::abs(transform[2]) * sub.bounds_extents.z;
             DrawCall base_draw = {
-                .index_buffer = mesh.index_buffer,
+                .index_buffer = model.index_buffer,
                 .material_buffer = mb_addr,
                 .vertex_buffer = vb_addr,
                 .transform = std::bit_cast<daxa_f32mat4x4>(transform),
                 .index_count = sub.index_count,
                 .first_index = sub.index_offset,
+                .vertex_offset = sub.vertex_offset,
                 .material_idx = sub.material_idx,
                 .aabb_min = world_center - world_extents,
                 .aabb_max = world_center + world_extents,

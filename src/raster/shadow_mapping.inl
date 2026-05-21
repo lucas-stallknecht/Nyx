@@ -71,7 +71,9 @@ inline void shadow_mapping_callback(daxa::TaskInterface ti, daxa::RasterPipeline
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;
         cr.push_constant(push);
-        cr.draw_indexed({.index_count = draw.index_count, .first_index = draw.first_index});
+        cr.draw_indexed({.index_count = draw.index_count,
+                         .first_index = draw.first_index,
+                         .vertex_offset = static_cast<i32>(draw.vertex_offset)});
         gpu.stats.drawcall_count++;
     }
 
