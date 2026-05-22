@@ -26,7 +26,7 @@ namespace
     daxa::ImageInfo make_draw_info(Window const & w)
     {
         return {
-            .format = daxa::Format::R32G32B32A32_SFLOAT,
+            .format = daxa::Format::R16G16B16A16_SFLOAT,
             .size = {.x = w.width, .y = w.height, .z = 1},
             .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
                      daxa::ImageUsageFlagBits::SHADER_STORAGE,
@@ -78,7 +78,7 @@ namespace
     daxa::ImageInfo make_brightcolor_info(Window const & w)
     {
         return {
-            .format = daxa::Format::R32G32B32A32_SFLOAT,
+            .format = daxa::Format::R16G16B16A16_SFLOAT,
             .size = {.x = w.width, .y = w.height, .z = 1},
             .mip_level_count = 2,
             .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |

@@ -25,7 +25,7 @@ inline daxa::RasterPipelineCompileInfo2 debug_wireframe_pipeline_info()
         .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/debug_wireframe.glsl"}},
         .color_attachments =
             {
-                {.format = daxa::Format::R32G32B32A32_SFLOAT},
+                {.format = daxa::Format::R16G16B16A16_SFLOAT},
             },
         .raster =
             {

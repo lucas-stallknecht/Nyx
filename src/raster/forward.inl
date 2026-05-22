@@ -36,8 +36,8 @@ inline daxa::RasterPipelineCompileInfo2 opaque_pipeline_info()
     return {
         .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/forward.glsl"}},
         .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/forward.glsl"}},
-        .color_attachments = {{.format = daxa::Format::R32G32B32A32_SFLOAT},
-                              {.format = daxa::Format::R32G32B32A32_SFLOAT}},
+        .color_attachments = {{.format = daxa::Format::R16G16B16A16_SFLOAT},
+                              {.format = daxa::Format::R16G16B16A16_SFLOAT}},
         .depth_test =
             daxa::DepthTestInfo{
                 .depth_attachment_format = daxa::Format::D32_SFLOAT,
