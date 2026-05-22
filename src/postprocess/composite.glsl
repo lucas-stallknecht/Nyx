@@ -35,13 +35,19 @@ void main()
     ivec2 size = imageSize(daxa_image2D(push.attachments.draw_image));
     if (tex_coords.x >= size.x || tex_coords.y >= size.y) return;
 
+    vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
+    vec2 texel = 1.0 / vec2(size);
+
     vec3 hdr_col = imageLoad(daxa_image2D(push.attachments.draw_image), tex_coords).rgb;
 
     if (frame_data.ssr_enabled) {
         hdr_col += imageLoad(daxa_image2D(push.attachments.ssr_image), tex_coords).rgb;
     }
     if (frame_data.bloom_enabled) {
-        hdr_col += frame_data.bloom_intensity * imageLoad(daxa_image2D(push.attachments.bloom_image), tex_coords).rgb;
+        // Read the already-downsampled smallest mip we generated via compute and stored in
+        // a separate image.
+        vec3 bloom = texture(daxa_sampler2D(push.attachments.bloom_image, global.default_linear_sampler), uv).rgb;
+        hdr_col += frame_data.bloom_intensity * bloom;
     }
 
     // Tone mapping

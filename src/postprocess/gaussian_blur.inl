@@ -4,8 +4,6 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#define BLOOM_NUM_PASSES 10
-
 struct GaussianBlurPC
 {
     daxa_b32         horizontal;
@@ -31,32 +29,35 @@ inline daxa::ComputePipelineCompileInfo2 gaussian_blur_pipeline_info()
 inline void gaussian_blur_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline,
                                    daxa_b32 const * enabled, daxa::BufferId global_buffer,
                                    daxa::TaskImageView input_image, daxa::TaskImageView ping0,
-                                   daxa::TaskImageView ping1)
+                                   daxa::TaskImageView ping1, int num_passes)
 {
     if (!(*enabled))
     {
         return;
     }
 
-    daxa::Extent3D          size = ti.info(input_image).value().size;
     daxa::CommandRecorder & cr = ti.recorder;
 
     // Ping pong gaussian blur h -> v -> h
     daxa::TaskImageView ping_pong_images[2] = {ping0, ping1};
 
     bool horizontal = true;
-    for (int i = 0; i < BLOOM_NUM_PASSES; i++)
+    for (int i = 0; i < num_passes; i++)
     {
+        // Use output image size for dispatch so we write across the full target image.
+        daxa::TaskImageView out_view = ping_pong_images[horizontal];
+        daxa::Extent3D      out_size = ti.info(out_view).value().size;
+
         cr.set_pipeline(*pipeline);
         cr.push_constant(GaussianBlurPC{
             .horizontal = horizontal,
             .input_image = i == 0 ? ti.view(input_image) : ti.view(ping_pong_images[!horizontal]),
-            .output_image = ti.view(ping_pong_images[horizontal]),
+            .output_image = ti.view(out_view),
             .global_buffer = ti.device.device_address(global_buffer).value(),
         });
         cr.dispatch({
-            .x = (size.x + 7u) / 8u,
-            .y = (size.y + 7u) / 8u,
+            .x = (out_size.x + 7u) / 8u,
+            .y = (out_size.y + 7u) / 8u,
             .z = 1,
         });
 

@@ -77,9 +77,15 @@ namespace
     }
     daxa::ImageInfo make_brightcolor_info(Window const & w)
     {
-        daxa::ImageInfo info = make_draw_info(w);
-        info.name = "bright parts image";
-        return info;
+        return {
+            .format = daxa::Format::R32G32B32A32_SFLOAT,
+            .size = {.x = w.width, .y = w.height, .z = 1},
+            .mip_level_count = 2,
+            .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
+                     daxa::ImageUsageFlagBits::SHADER_STORAGE | daxa::ImageUsageFlagBits::TRANSFER_SRC |
+                     daxa::ImageUsageFlagBits::TRANSFER_DST,
+            .name = "bright color image",
+        };
     }
 } // namespace
 
@@ -167,10 +173,8 @@ void Renderer::init_resources(Window const & window)
     create_resizable_image(window, t_ssao_image, make_ssao_info, "task ssao image");
     create_resizable_image(window, t_ssao_blurred_image, make_ssao_blur_info, "task ssao blurred image");
     create_resizable_image(window, t_ssr_image, make_ssr_info, "task ssr image");
-    create_resizable_image(window, t_brightcolor_blurred_images[0], make_brightcolor_info,
+    create_resizable_image(window, t_brightcolor_image_ping0, make_brightcolor_info,
                            "task bright color blurred image 1");
-    create_resizable_image(window, t_brightcolor_blurred_images[1], make_brightcolor_info,
-                           "task bright color blurred image 2");
 
     global_buffer = gpu.device.create_buffer({
         .size = sizeof(GPUGlobals),
@@ -204,8 +208,7 @@ void Renderer::init_task_graphs()
     loop_task_graph.register_image(gpu.t_swapchain_image);
     loop_task_graph.register_image(t_draw_image);
     loop_task_graph.register_image(t_brightcolor_image);
-    loop_task_graph.register_image(t_brightcolor_blurred_images[0]);
-    loop_task_graph.register_image(t_brightcolor_blurred_images[1]);
+    loop_task_graph.register_image(t_brightcolor_image_ping0);
     loop_task_graph.register_image(t_ssr_image);
     loop_task_graph.register_image(t_depth_image);
     loop_task_graph.register_image(t_shadow_map);
@@ -255,14 +258,55 @@ void Renderer::init_task_graphs()
                                  .color_attachment.writes(t_draw_image.view())
                                  .executes(debug_wireframe_callback, debug_wireframe_pipeline.get(), &scene,
                                            global_buffer, t_draw_image.view()));
+    loop_task_graph.add_task(
+        daxa::TransferTask("generate bright image mip")
+            .reads_writes(t_brightcolor_image.view())
+            .executes(
+                [=, this](daxa::TaskInterface ti)
+                {
+                    daxa::CommandRecorder & cr = ti.recorder;
+                    daxa::Extent3D          size = ti.info(t_brightcolor_image.view()).value().size;
+                    daxa::ImageId           image = ti.id(t_brightcolor_image.view());
+                    i32                     mip_width = static_cast<i32>(size.x);
+                    i32                     mip_height = static_cast<i32>(size.y);
+                    for (u32 mip = 1; mip < 2; ++mip)
+                    {
+                        cr.blit_image_to_image({
+                            .src_image = image,
+                            .dst_image = image,
+                            .src_slice =
+                                {
+                                    .mip_level = mip - 1,
+                                    .base_array_layer = 0,
+                                    .layer_count = 1,
+                                },
+                            .src_offsets = {{
+                                {0, 0, 0},
+                                {mip_width, mip_height, 1},
+                            }},
+                            .dst_slice =
+                                {
+                                    .mip_level = mip,
+                                    .base_array_layer = 0,
+                                    .layer_count = 1,
+                                },
+                            .dst_offsets = {{
+                                {0, 0, 0},
+                                {mip_width > 1 ? mip_width / 2 : 1, mip_height > 1 ? mip_height / 2 : 1, 1},
+                            }},
+
+                            .filter = daxa::Filter::LINEAR,
+                        });
+                        mip_width = std::max(1, mip_width / 2);
+                        mip_height = std::max(1, mip_height / 2);
+                    }
+                }));
     loop_task_graph.add_task(daxa::ComputeTask("blur brightpass")
-                                 .compute_shader.reads(t_brightcolor_image.view())
-                                 .compute_shader.writes(t_brightcolor_blurred_images[0].view())
-                                 .compute_shader.writes(t_brightcolor_blurred_images[1].view())
+                                 .compute_shader.reads_writes(t_brightcolor_image.view().mips(1))
+                                 .compute_shader.writes(t_brightcolor_image_ping0.view())
                                  .executes(gaussian_blur_callback, gaussian_blur_pipeline.get(), &blur_brightpass,
-                                           global_buffer, t_brightcolor_image.view(),
-                                           t_brightcolor_blurred_images[0].view(),
-                                           t_brightcolor_blurred_images[1].view()));
+                                           global_buffer, t_brightcolor_image.view().mips(1),
+                                           t_brightcolor_image.view().mips(1), t_brightcolor_image_ping0.view(), 2));
     loop_task_graph.add_task(daxa::ComputeTask("ssr")
                                  .uses_head<SSRHead::Info>()
                                  .head_views({
@@ -277,7 +321,7 @@ void Renderer::init_task_graphs()
                                  .head_views({
                                      .draw_image = t_draw_image.view(),
                                      .ssr_image = t_ssr_image.view(),
-                                     .bloom_image = t_brightcolor_blurred_images[0].view(),
+                                     .bloom_image = t_brightcolor_image.view().mips(1),
                                      .output_image = gpu.t_swapchain_image.view(),
                                  })
                                  .executes(composite_callback, composite_pipeline.get(), global_buffer));

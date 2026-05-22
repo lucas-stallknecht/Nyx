@@ -39,7 +39,7 @@ struct Renderer
     daxa::ImageId                          ssao_noise_image;
     daxa::ExternalTaskImage                t_draw_image;
     daxa::ExternalTaskImage                t_brightcolor_image;
-    std::array<daxa::ExternalTaskImage, 2> t_brightcolor_blurred_images = {};
+    daxa::ExternalTaskImage                t_brightcolor_image_ping0;
     daxa::ExternalTaskImage                t_depth_image;
     daxa::ExternalTaskImage                t_slim_gbuffer;
     daxa::ExternalTaskImage                t_shadow_map;
