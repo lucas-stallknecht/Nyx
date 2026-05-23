@@ -13,6 +13,7 @@
 #include "postprocess/blur.inl"
 #include "postprocess/ssr.inl"
 #include "postprocess/gaussian_blur.inl"
+#include "postprocess/bright_parts.inl"
 #include "gpu_context.hpp"
 #include "utils/upload.hpp"
 #include <fmt/core.h>
@@ -33,6 +34,14 @@ namespace
             .name = "draw image",
         };
     }
+    daxa::ImageInfo make_draw_info_msaa(Window const & w)
+    {
+        daxa::ImageInfo info = make_draw_info(w);
+        info.sample_count = 4;
+        info.usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::TRANSIENT_ATTACHMENT;
+        info.name = "multisampled draw image";
+        return info;
+    }
     daxa::ImageInfo make_depth_info(Window const & w)
     {
         return {
@@ -42,6 +51,13 @@ namespace
                      daxa::ImageUsageFlagBits::SHADER_STORAGE,
             .name = "depth image",
         };
+    }
+    daxa::ImageInfo make_depth_info_msaa(Window const & w)
+    {
+        daxa::ImageInfo info = make_depth_info(w);
+        info.sample_count = 4;
+        info.name = "multisampled depth image";
+        return info;
     }
     daxa::ImageInfo make_slim_gbuffer_indo(Window const & w)
     {
@@ -107,6 +123,7 @@ void Renderer::init(Window const & window)
     shadow_pipeline = gpu.pipeline_manager.add_raster_pipeline2(shadow_mapping_pipeline_info()).value();
     ssao_pipeline = gpu.pipeline_manager.add_compute_pipeline2(ssao_pipeline_info()).value();
     blur_pipeline = gpu.pipeline_manager.add_compute_pipeline2(blur_pipeline_info()).value();
+    bright_parts_pipeline = gpu.pipeline_manager.add_compute_pipeline2(bright_parts_pipeline_info()).value();
     gaussian_blur_pipeline = gpu.pipeline_manager.add_compute_pipeline2(gaussian_blur_pipeline_info()).value();
     opaque_pipeline = gpu.pipeline_manager.add_raster_pipeline2(opaque_pipeline_info()).value();
     transparent_pipeline = gpu.pipeline_manager.add_raster_pipeline2(transparent_pipeline_info()).value();
@@ -167,8 +184,10 @@ void Renderer::init_resources(Window const & window)
         .name = "task shadow map",
     });
     create_resizable_image(window, t_draw_image, make_draw_info, "task draw image");
+    create_resizable_image(window, t_draw_image_msaa, make_draw_info_msaa, "task multisampled draw image");
     create_resizable_image(window, t_brightcolor_image, make_brightcolor_info, "task bright color image");
     create_resizable_image(window, t_depth_image, make_depth_info, "task depth image");
+    create_resizable_image(window, t_depth_image_msaa, make_depth_info_msaa, "task multisampled depth image");
     create_resizable_image(window, t_slim_gbuffer, make_slim_gbuffer_indo, "task slim gbuffer image");
     create_resizable_image(window, t_ssao_image, make_ssao_info, "task ssao image");
     create_resizable_image(window, t_ssao_blurred_image, make_ssao_blur_info, "task ssao blurred image");
@@ -207,10 +226,12 @@ void Renderer::init_task_graphs()
 
     loop_task_graph.register_image(gpu.t_swapchain_image);
     loop_task_graph.register_image(t_draw_image);
+    loop_task_graph.register_image(t_draw_image_msaa);
     loop_task_graph.register_image(t_brightcolor_image);
     loop_task_graph.register_image(t_brightcolor_image_ping0);
     loop_task_graph.register_image(t_ssr_image);
     loop_task_graph.register_image(t_depth_image);
+    loop_task_graph.register_image(t_depth_image_msaa);
     loop_task_graph.register_image(t_shadow_map);
     loop_task_graph.register_image(t_ssao_image);
     loop_task_graph.register_image(t_ssao_blurred_image);
@@ -247,13 +268,18 @@ void Renderer::init_task_graphs()
         daxa::RasterTask("draw forward")
             .uses_head<ForwardPassHead::Info>()
             .head_views({
+                .color_target_msaa = t_draw_image_msaa.view(),
                 .color_target = t_draw_image.view(),
-                .bright_color_target = t_brightcolor_image.view(),
-                .depth_target = t_depth_image.view(),
+                .depth_target = t_depth_image_msaa.view(),
                 .shadow_map = t_shadow_map.view(),
                 .ssao_image = t_ssao_blurred_image.view(),
             })
             .executes(forward_callback, opaque_pipeline.get(), transparent_pipeline.get(), &scene, global_buffer));
+    loop_task_graph.add_task(
+        daxa::ComputeTask("extract bright parts")
+            .uses_head<BrightPartsHead::Info>()
+            .head_views({.input_image = t_draw_image.view(), .bright_parts_image = t_brightcolor_image.view()})
+            .executes(bright_parts_callback, bright_parts_pipeline.get(), &(frame_data.bloom_enabled), global_buffer));
     loop_task_graph.add_task(daxa::RasterTask("draw debug wireframes")
                                  .color_attachment.writes(t_draw_image.view())
                                  .executes(debug_wireframe_callback, debug_wireframe_pipeline.get(), &scene,

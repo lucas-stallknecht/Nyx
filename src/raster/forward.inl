@@ -5,8 +5,8 @@
 #include <daxa/utils/task_graph.inl>
 
 DAXA_DECL_RASTER_TASK_HEAD_BEGIN(ForwardPassHead)
-DAXA_TH_IMAGE(COLOR_ATTACHMENT, REGULAR_2D, color_target)
-DAXA_TH_IMAGE(COLOR_ATTACHMENT, REGULAR_2D, bright_color_target)
+DAXA_TH_IMAGE(COLOR_ATTACHMENT, REGULAR_2D, color_target_msaa)
+DAXA_TH_IMAGE(RESOLVE::WRITE, REGULAR_2D, color_target)
 DAXA_TH_IMAGE(DEPTH_ATTACHMENT, REGULAR_2D, depth_target)
 DAXA_TH_IMAGE_ID(FRAGMENT_SHADER::SAMPLE, REGULAR_2D, shadow_map)
 DAXA_TH_IMAGE_ID(FRAGMENT_SHADER::SAMPLE, REGULAR_2D, ssao_image)
@@ -36,8 +36,7 @@ inline daxa::RasterPipelineCompileInfo2 opaque_pipeline_info()
     return {
         .vertex_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/forward.glsl"}},
         .fragment_shader_info = daxa::ShaderCompileInfo2{.source = daxa::ShaderFile{"raster/forward.glsl"}},
-        .color_attachments = {{.format = daxa::Format::R16G16B16A16_SFLOAT},
-                              {.format = daxa::Format::R16G16B16A16_SFLOAT}},
+        .color_attachments = {{.format = daxa::Format::R16G16B16A16_SFLOAT}},
         .depth_test =
             daxa::DepthTestInfo{
                 .depth_attachment_format = daxa::Format::D32_SFLOAT,
@@ -48,6 +47,7 @@ inline daxa::RasterPipelineCompileInfo2 opaque_pipeline_info()
             {
                 .face_culling = daxa::FaceCullFlagBits::BACK_BIT,
                 .front_face_winding = daxa::FrontFaceWinding::COUNTER_CLOCKWISE,
+                .static_state_sample_count = daxa::RasterizationSamples::E4,
             },
         .push_constant_size = sizeof(ForwardPassPC),
         .name = "opaque rendering pipeline",
@@ -68,6 +68,7 @@ inline daxa::RasterPipelineCompileInfo2 transparent_pipeline_info()
     };
     ci.raster = {
         .face_culling = daxa::FaceCullFlagBits::NONE,
+        .static_state_sample_count = daxa::RasterizationSamples::E4,
     };
     ci.name = "transparent rendering pipeline";
 
@@ -87,20 +88,22 @@ inline void forward_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
                     .color_attachments =
                         std::array{
                             daxa::RenderAttachmentInfo{
-                                .image_view = ti.view(AT.color_target),
+                                .image_view = ti.view(AT.color_target_msaa),
                                 .load_op = daxa::AttachmentLoadOp::CLEAR,
+                                .store_op = daxa::AttachmentStoreOp::DONT_CARE,
                                 .clear_value = std::array<daxa::f32, 4>{0.463f, 0.706f, 0.80f, 1.0f},
-                            },
-                            daxa::RenderAttachmentInfo{
-                                .image_view = ti.view(AT.bright_color_target),
-                                .load_op = daxa::AttachmentLoadOp::CLEAR,
-                                .clear_value = std::array<daxa::f32, 4>{0.0f, 0.0f, 0.0f, 1.0f},
+                                .resolve =
+                                    daxa::AttachmentResolveInfo{
+                                        .mode = daxa::ResolveMode::AVERAGE,
+                                        .image = ti.view(AT.color_target),
+                                    },
                             },
                         },
                     .depth_attachment =
                         daxa::RenderAttachmentInfo{
                             .image_view = ti.view(AT.depth_target),
                             .load_op = daxa::AttachmentLoadOp::CLEAR,
+                            .store_op = daxa::AttachmentStoreOp::DONT_CARE,
                             .clear_value = daxa::DepthValue{.depth = 0.0f, .stencil = 0},
                         },
                     .render_area = {.width = size.x, .height = size.y},
