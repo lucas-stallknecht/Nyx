@@ -14,6 +14,7 @@
 #include "postprocess/ssr.inl"
 #include "postprocess/gaussian_blur.inl"
 #include "postprocess/bright_parts.inl"
+#include "postprocess/volumetric_lighting.inl"
 #include "gpu_context.hpp"
 #include "utils/upload.hpp"
 #include <fmt/core.h>
@@ -103,6 +104,15 @@ namespace
             .name = "bright color image",
         };
     }
+    daxa::ImageInfo make_volumetric_lighting_info(Window const & w)
+    {
+        return {
+            .format = daxa::Format::R16G16B16A16_SFLOAT,
+            .size = {.x = w.width / 2, .y = w.height / 2, .z = 1},
+            .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::SHADER_STORAGE,
+            .name = "volumetric lighting image",
+        };
+    }
 } // namespace
 
 void Renderer::init(Window const & window)
@@ -129,6 +139,8 @@ void Renderer::init(Window const & window)
     transparent_pipeline = gpu.pipeline_manager.add_raster_pipeline2(transparent_pipeline_info()).value();
     debug_wireframe_pipeline = gpu.pipeline_manager.add_raster_pipeline2(debug_wireframe_pipeline_info()).value();
     ssr_pipeline = gpu.pipeline_manager.add_compute_pipeline2(ssr_pipeline_info()).value();
+    volumetric_lighting_pipeline =
+        gpu.pipeline_manager.add_compute_pipeline2(volumetric_lighting_pipeline_info()).value();
     composite_pipeline = gpu.pipeline_manager.add_compute_pipeline2(composite_pipeline_info()).value();
 
     fmt::println("[Renderer] Shaders ready");
@@ -192,6 +204,10 @@ void Renderer::init_resources(Window const & window)
     create_resizable_image(window, t_ssao_image, make_ssao_info, "task ssao image");
     create_resizable_image(window, t_ssao_blurred_image, make_ssao_blur_info, "task ssao blurred image");
     create_resizable_image(window, t_ssr_image, make_ssr_info, "task ssr image");
+    create_resizable_image(window, t_volumetric_lighting_image, make_volumetric_lighting_info,
+                           "task volumetric lighting image");
+    create_resizable_image(window, t_volumetric_lighting_image_ping0, make_volumetric_lighting_info,
+                           "task volumetric lighting blurred image 1");
     create_resizable_image(window, t_brightcolor_image_ping0, make_brightcolor_info,
                            "task bright color blurred image 1");
 
@@ -235,6 +251,8 @@ void Renderer::init_task_graphs()
     loop_task_graph.register_image(t_shadow_map);
     loop_task_graph.register_image(t_ssao_image);
     loop_task_graph.register_image(t_ssao_blurred_image);
+    loop_task_graph.register_image(t_volumetric_lighting_image);
+    loop_task_graph.register_image(t_volumetric_lighting_image_ping0);
     loop_task_graph.register_image(t_slim_gbuffer);
 
     // Since this->scene value changes every frame, we must pass a pointer to it
@@ -342,12 +360,29 @@ void Renderer::init_task_graphs()
                                      .ssr_image = t_ssr_image.view(),
                                  })
                                  .executes(ssr_callback, ssr_pipeline.get(), &(frame_data.ssr_enabled), global_buffer));
+    loop_task_graph.add_task(daxa::ComputeTask("volumetric lighting")
+                                 .uses_head<VolumetricLightingHead::Info>()
+                                 .head_views({
+                                     .depth_image = t_depth_image.view(),
+                                     .shadow_map = t_shadow_map.view(),
+                                     .output_image = t_volumetric_lighting_image.view(),
+                                 })
+                                 .executes(volumetric_lighting_callback, volumetric_lighting_pipeline.get(),
+                                           &(frame_data.vlight_enabled), global_buffer));
+    loop_task_graph.add_task(daxa::ComputeTask("blur volumetric")
+                                 .compute_shader.reads_writes(t_volumetric_lighting_image.view())
+                                 .compute_shader.writes(t_volumetric_lighting_image_ping0.view())
+                                 .executes(gaussian_blur_callback, gaussian_blur_pipeline.get(),
+                                           &frame_data.vlight_enabled, global_buffer,
+                                           t_volumetric_lighting_image.view(), t_volumetric_lighting_image.view(),
+                                           t_volumetric_lighting_image_ping0.view(), 4));
     loop_task_graph.add_task(daxa::ComputeTask("composition")
                                  .uses_head<CompositeHead::Info>()
                                  .head_views({
                                      .draw_image = t_draw_image.view(),
                                      .ssr_image = t_ssr_image.view(),
                                      .bloom_image = t_brightcolor_image.view().mips(1),
+                                     .volumetric_lighting_image = t_volumetric_lighting_image.view(),
                                      .output_image = gpu.t_swapchain_image.view(),
                                  })
                                  .executes(composite_callback, composite_pipeline.get(), global_buffer));

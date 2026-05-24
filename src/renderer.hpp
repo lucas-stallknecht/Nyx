@@ -30,6 +30,7 @@ struct Renderer
     std::shared_ptr<daxa::RasterPipeline>  transparent_pipeline;
     std::shared_ptr<daxa::RasterPipeline>  debug_wireframe_pipeline;
     std::shared_ptr<daxa::ComputePipeline> ssr_pipeline;
+    std::shared_ptr<daxa::ComputePipeline> volumetric_lighting_pipeline;
     std::shared_ptr<daxa::ComputePipeline> composite_pipeline;
     daxa::SamplerId                        default_linear_sampler;
     daxa::SamplerId                        default_nearest_sampler;
@@ -49,6 +50,8 @@ struct Renderer
     daxa::ExternalTaskImage                t_ssao_image;
     daxa::ExternalTaskImage                t_ssao_blurred_image;
     daxa::ExternalTaskImage                t_ssr_image;
+    daxa::ExternalTaskImage                t_volumetric_lighting_image;
+    daxa::ExternalTaskImage                t_volumetric_lighting_image_ping0;
     daxa::TaskGraph                        loop_task_graph;
     daxa::TaskGraphDebugUi                 task_graph_debug_ui;
 
@@ -73,6 +76,10 @@ struct Renderer
         .ssr_screen_edge_fade = 0.2f,
         .ssr_num_samples = 256,
         .ssr_max_distance = 100.0,
+        .vlight_enabled = true,
+        .vlight_num_samples = 64,
+        .vlight_step_size = 0.2f,
+        .vlight_density = 0.003f,
     };
     f32 light_distance = 25.0f;
     f32 shadow_range = 15.0f;

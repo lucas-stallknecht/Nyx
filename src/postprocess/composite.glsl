@@ -44,10 +44,12 @@ void main()
         hdr_col += imageLoad(daxa_image2D(push.attachments.ssr_image), tex_coords).rgb;
     }
     if (frame_data.bloom_enabled) {
-        // Read the already-downsampled smallest mip we generated via compute and stored in
-        // a separate image.
         vec3 bloom = texture(daxa_sampler2D(push.attachments.bloom_image, global.default_linear_sampler), uv).rgb;
         hdr_col += frame_data.bloom_intensity * bloom;
+    }
+    if (frame_data.vlight_enabled) {
+        vec4 vlight = texture(daxa_sampler2D(push.attachments.volumetric_lighting_image, global.default_linear_sampler), uv);
+        hdr_col = hdr_col * vlight.a + vlight.rgb;
     }
 
     // Tone mapping

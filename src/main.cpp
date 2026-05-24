@@ -99,6 +99,14 @@ namespace
             ImGui::DragInt("Max Samples", &renderer.frame_data.ssr_num_samples, 1, 1, 512);
         }
 
+        if (ImGui::CollapsingHeader("Volumetric Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Checkbox("Enabled###Vlight", std::bit_cast<bool *>(&renderer.frame_data.vlight_enabled));
+            ImGui::DragFloat("Density", &renderer.frame_data.vlight_density, 0.0001f, 0.0f, 0.2f);
+            ImGui::DragFloat("Step size", &renderer.frame_data.vlight_step_size, 0.001f, 0.001f, 1.0f);
+            ImGui::DragInt("Max Samples###VlightSamples", &renderer.frame_data.vlight_num_samples, 1, 1, 64);
+        }
+
         ImGui::End();
     }
 

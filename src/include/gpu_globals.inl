@@ -46,6 +46,12 @@ struct GPUFrameData
     daxa_f32 ssr_screen_edge_fade;
     daxa_i32 ssr_num_samples;
     daxa_f32 ssr_max_distance;
+
+    daxa_b32 vlight_enabled;
+    daxa_i32 vlight_num_samples;
+    daxa_f32 vlight_step_size;
+    daxa_f32 vlight_density;
+    daxa_f32 vlight_absorption_coeff;
 };
 
 struct GPUGlobals
