@@ -31,7 +31,7 @@ void GPUContext::init(Window const & window)
 
     t_swapchain_image = daxa::ExternalTaskImage({
         .is_swapchain_image = true,
-        .name = "task swapchain image",
+        .name = "swapchain image",
     });
 
     initialized = true;

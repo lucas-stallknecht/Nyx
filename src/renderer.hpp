@@ -30,7 +30,7 @@ struct Renderer
     std::shared_ptr<daxa::RasterPipeline>  transparent_pipeline;
     std::shared_ptr<daxa::RasterPipeline>  debug_wireframe_pipeline;
     std::shared_ptr<daxa::ComputePipeline> ssr_pipeline;
-    std::shared_ptr<daxa::ComputePipeline> volumetric_lighting_pipeline;
+    std::shared_ptr<daxa::ComputePipeline> vlight_pipeline;
     std::shared_ptr<daxa::ComputePipeline> composite_pipeline;
     daxa::SamplerId                        material_linear_sampler;
     daxa::SamplerId                        postprocess_linear_sampler;
@@ -42,8 +42,8 @@ struct Renderer
     daxa::ImageId                          ssao_noise_image;
     daxa::ExternalTaskImage                t_draw_image;
     daxa::ExternalTaskImage                t_draw_image_msaa;
-    daxa::ExternalTaskImage                t_brightcolor_image;
-    daxa::ExternalTaskImage                t_brightcolor_image_ping0;
+    daxa::ExternalTaskImage                t_bloom_image;
+    daxa::ExternalTaskImage                t_bloom_image_ping0;
     daxa::ExternalTaskImage                t_depth_image;
     daxa::ExternalTaskImage                t_depth_image_msaa;
     daxa::ExternalTaskImage                t_slim_gbuffer;
@@ -51,8 +51,8 @@ struct Renderer
     daxa::ExternalTaskImage                t_ssao_image;
     daxa::ExternalTaskImage                t_ssao_blurred_image;
     daxa::ExternalTaskImage                t_ssr_image;
-    daxa::ExternalTaskImage                t_volumetric_lighting_image;
-    daxa::ExternalTaskImage                t_volumetric_lighting_image_ping0;
+    daxa::ExternalTaskImage                t_vlight_image;
+    daxa::ExternalTaskImage                t_vlight_image_ping0;
     daxa::TaskGraph                        loop_task_graph;
     daxa::TaskGraphDebugUi                 task_graph_debug_ui;
 
@@ -77,7 +77,7 @@ struct Renderer
         .ssr_screen_edge_fade = 0.2f,
         .ssr_num_samples = 256,
         .ssr_max_distance = 100.0,
-        .vlight_enabled = true,
+        .vlight_enabled = false,
         .vlight_num_samples = 64,
         .vlight_step_size = 0.2f,
         .vlight_density = 0.003f,
@@ -94,8 +94,7 @@ struct Renderer
   private:
     bool                        initialized = false;
     Scene const *               scene = nullptr;
-    daxa_b32                    blur_brightpass = true;
-    std::vector<ResizableImage> resizable_iamges = {};
+    std::vector<ResizableImage> resizable_images = {};
 
     void init_resources(Window const & window);
     void init_task_graphs();

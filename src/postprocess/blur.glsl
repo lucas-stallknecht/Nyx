@@ -10,12 +10,12 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 void main()
 {
-    GPUGlobals global = deref(push.global_buffer);
-
     ivec2 tex_coords = ivec2(gl_GlobalInvocationID.xy);
     ivec2 size = imageSize(daxa_image2D(push.attachments.input_image));
     if (tex_coords.x >= size.x || tex_coords.y >= size.y)
         return;
+
+    GPUGlobals global = deref(push.global_buffer);
 
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
     vec2 texel = 1.0 / vec2(size);

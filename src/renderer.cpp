@@ -60,7 +60,7 @@ namespace
         info.name = "multisampled depth image";
         return info;
     }
-    daxa::ImageInfo make_slim_gbuffer_indo(Window const & w)
+    daxa::ImageInfo make_slim_gbuffer_info(Window const & w)
     {
         return {
             .format = daxa::Format::R16G16B16A16_UNORM,
@@ -92,7 +92,7 @@ namespace
         info.name = "ssr image";
         return info;
     }
-    daxa::ImageInfo make_brightcolor_info(Window const & w)
+    daxa::ImageInfo make_bloom_info(Window const & w)
     {
         return {
             .format = daxa::Format::R16G16B16A16_SFLOAT,
@@ -101,16 +101,16 @@ namespace
             .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED |
                      daxa::ImageUsageFlagBits::SHADER_STORAGE | daxa::ImageUsageFlagBits::TRANSFER_SRC |
                      daxa::ImageUsageFlagBits::TRANSFER_DST,
-            .name = "bright color image",
+            .name = "bloom image",
         };
     }
-    daxa::ImageInfo make_volumetric_lighting_info(Window const & w)
+    daxa::ImageInfo make_vlight_info(Window const & w)
     {
         return {
             .format = daxa::Format::R16G16B16A16_SFLOAT,
             .size = {.x = w.width / 2, .y = w.height / 2, .z = 1},
             .usage = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::SHADER_STORAGE,
-            .name = "volumetric lighting image",
+            .name = "vlight image",
         };
     }
 } // namespace
@@ -139,8 +139,7 @@ void Renderer::init(Window const & window)
     transparent_pipeline = gpu.pipeline_manager.add_raster_pipeline2(transparent_pipeline_info()).value();
     debug_wireframe_pipeline = gpu.pipeline_manager.add_raster_pipeline2(debug_wireframe_pipeline_info()).value();
     ssr_pipeline = gpu.pipeline_manager.add_compute_pipeline2(ssr_pipeline_info()).value();
-    volumetric_lighting_pipeline =
-        gpu.pipeline_manager.add_compute_pipeline2(volumetric_lighting_pipeline_info()).value();
+    vlight_pipeline = gpu.pipeline_manager.add_compute_pipeline2(vlight_pipeline_info()).value();
     composite_pipeline = gpu.pipeline_manager.add_compute_pipeline2(composite_pipeline_info()).value();
 
     fmt::println("[Renderer] Shaders ready");
@@ -208,23 +207,20 @@ void Renderer::init_resources(Window const & window)
             .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_SAMPLED,
             .name = "shadow map",
         }),
-        .name = "task shadow map",
+        .name = "shadow map",
     });
-    create_resizable_image(window, t_draw_image, make_draw_info, "task draw image");
-    create_resizable_image(window, t_draw_image_msaa, make_draw_info_msaa, "task multisampled draw image");
-    create_resizable_image(window, t_brightcolor_image, make_brightcolor_info, "task bright color image");
-    create_resizable_image(window, t_depth_image, make_depth_info, "task depth image");
-    create_resizable_image(window, t_depth_image_msaa, make_depth_info_msaa, "task multisampled depth image");
-    create_resizable_image(window, t_slim_gbuffer, make_slim_gbuffer_indo, "task slim gbuffer image");
-    create_resizable_image(window, t_ssao_image, make_ssao_info, "task ssao image");
-    create_resizable_image(window, t_ssao_blurred_image, make_ssao_blur_info, "task ssao blurred image");
-    create_resizable_image(window, t_ssr_image, make_ssr_info, "task ssr image");
-    create_resizable_image(window, t_volumetric_lighting_image, make_volumetric_lighting_info,
-                           "task volumetric lighting image");
-    create_resizable_image(window, t_volumetric_lighting_image_ping0, make_volumetric_lighting_info,
-                           "task volumetric lighting blurred image 1");
-    create_resizable_image(window, t_brightcolor_image_ping0, make_brightcolor_info,
-                           "task bright color blurred image 1");
+    create_resizable_image(window, t_draw_image, make_draw_info, "draw image");
+    create_resizable_image(window, t_draw_image_msaa, make_draw_info_msaa, "draw image msaa");
+    create_resizable_image(window, t_bloom_image, make_bloom_info, "bloom image");
+    create_resizable_image(window, t_depth_image, make_depth_info, "depth image");
+    create_resizable_image(window, t_depth_image_msaa, make_depth_info_msaa, "depth image msaa");
+    create_resizable_image(window, t_slim_gbuffer, make_slim_gbuffer_info, "slim gbuffer");
+    create_resizable_image(window, t_ssao_image, make_ssao_info, "ssao image");
+    create_resizable_image(window, t_ssao_blurred_image, make_ssao_blur_info, "ssao blurred image");
+    create_resizable_image(window, t_ssr_image, make_ssr_info, "ssr image");
+    create_resizable_image(window, t_vlight_image, make_vlight_info, "vlight image");
+    create_resizable_image(window, t_vlight_image_ping0, make_vlight_info, "vlight image ping0");
+    create_resizable_image(window, t_bloom_image_ping0, make_bloom_info, "bloom image ping0");
 
     global_buffer = gpu.device.create_buffer({
         .size = sizeof(GPUGlobals),
@@ -241,7 +237,7 @@ void Renderer::create_resizable_image(Window const & window, daxa::ExternalTaskI
         .image = gpu.device.create_image(info_create(window)),
         .name = name,
     });
-    resizable_iamges.emplace_back(ResizableImage{
+    resizable_images.emplace_back(ResizableImage{
         .info_create = info_create,
         .target_image = t_image,
     });
@@ -258,47 +254,47 @@ void Renderer::init_task_graphs()
     loop_task_graph.register_image(gpu.t_swapchain_image);
     loop_task_graph.register_image(t_draw_image);
     loop_task_graph.register_image(t_draw_image_msaa);
-    loop_task_graph.register_image(t_brightcolor_image);
-    loop_task_graph.register_image(t_brightcolor_image_ping0);
+    loop_task_graph.register_image(t_bloom_image);
+    loop_task_graph.register_image(t_bloom_image_ping0);
     loop_task_graph.register_image(t_ssr_image);
     loop_task_graph.register_image(t_depth_image);
     loop_task_graph.register_image(t_depth_image_msaa);
     loop_task_graph.register_image(t_shadow_map);
     loop_task_graph.register_image(t_ssao_image);
     loop_task_graph.register_image(t_ssao_blurred_image);
-    loop_task_graph.register_image(t_volumetric_lighting_image);
-    loop_task_graph.register_image(t_volumetric_lighting_image_ping0);
+    loop_task_graph.register_image(t_vlight_image);
+    loop_task_graph.register_image(t_vlight_image_ping0);
     loop_task_graph.register_image(t_slim_gbuffer);
 
     // Since this->scene value changes every frame, we must pass a pointer to it
-    loop_task_graph.add_task(daxa::RasterTask("draw prepass")
+    loop_task_graph.add_task(daxa::RasterTask("prepass")
                                  .depth_stencil_attachment.writes(t_depth_image.view())
                                  .color_attachment.writes(t_slim_gbuffer.view())
                                  .executes(prepass_callback, prepass_pipeline.get(), &scene, t_depth_image.view(),
                                            t_slim_gbuffer.view(), global_buffer));
-    loop_task_graph.add_task(daxa::ComputeTask("compute ssao")
+    loop_task_graph.add_task(daxa::ComputeTask("ssao")
                                  .uses_head<SSAOHead::Info>()
                                  .head_views({
                                      .depth_image = t_depth_image.view(),
                                      .slim_gbuffer = t_slim_gbuffer.view(),
                                      .ssao_image = t_ssao_image.view(),
                                  })
-                                 .executes(ssao_callback, ssao_pipeline.get(), &(frame_data.ssao_enabled),
-                                           global_buffer, ssao_kernel_buffer, ssao_noise_image));
+                                 .executes(ssao_callback, ssao_pipeline.get(), &frame_data.ssao_enabled, global_buffer,
+                                           ssao_kernel_buffer, ssao_noise_image));
     loop_task_graph.add_task(
-        daxa::ComputeTask("blur ssao")
+        daxa::ComputeTask("ssao blur")
             .uses_head<BlurHead::Info>()
             .head_views({
                 .input_image = t_ssao_image.view(),
                 .blurred_image = t_ssao_blurred_image.view(),
             })
-            .executes(blur_callback, blur_pipeline.get(), &(frame_data.ssao_enabled), global_buffer));
+            .executes(blur_callback, blur_pipeline.get(), &frame_data.ssao_enabled, global_buffer));
     loop_task_graph.add_task(
-        daxa::RasterTask("draw shadow depth")
+        daxa::RasterTask("shadow")
             .depth_stencil_attachment.writes(t_shadow_map.view())
             .executes(shadow_mapping_callback, shadow_pipeline.get(), &scene, t_shadow_map.view(), global_buffer));
     loop_task_graph.add_task(
-        daxa::RasterTask("draw forward")
+        daxa::RasterTask("forward")
             .uses_head<ForwardPassHead::Info>()
             .head_views({
                 .color_target_msaa = t_draw_image_msaa.view(),
@@ -309,23 +305,23 @@ void Renderer::init_task_graphs()
             })
             .executes(forward_callback, opaque_pipeline.get(), transparent_pipeline.get(), &scene, global_buffer));
     loop_task_graph.add_task(
-        daxa::ComputeTask("extract bright parts")
+        daxa::ComputeTask("bright parts")
             .uses_head<BrightPartsHead::Info>()
-            .head_views({.input_image = t_draw_image.view(), .bright_parts_image = t_brightcolor_image.view()})
-            .executes(bright_parts_callback, bright_parts_pipeline.get(), &(frame_data.bloom_enabled), global_buffer));
-    loop_task_graph.add_task(daxa::RasterTask("draw debug wireframes")
+            .head_views({.input_image = t_draw_image.view(), .bloom_image = t_bloom_image.view()})
+            .executes(bright_parts_callback, bright_parts_pipeline.get(), &frame_data.bloom_enabled, global_buffer));
+    loop_task_graph.add_task(daxa::RasterTask("debug wireframe")
                                  .color_attachment.writes(t_draw_image.view())
                                  .executes(debug_wireframe_callback, debug_wireframe_pipeline.get(), &scene,
                                            global_buffer, t_draw_image.view()));
     loop_task_graph.add_task(
-        daxa::TransferTask("generate bright image mip")
-            .reads_writes(t_brightcolor_image.view())
+        daxa::TransferTask("bloom mip gen")
+            .reads_writes(t_bloom_image.view())
             .executes(
                 [=, this](daxa::TaskInterface ti)
                 {
                     daxa::CommandRecorder & cr = ti.recorder;
-                    daxa::Extent3D          size = ti.info(t_brightcolor_image.view()).value().size;
-                    daxa::ImageId           image = ti.id(t_brightcolor_image.view());
+                    daxa::Extent3D          size = ti.info(t_bloom_image.view()).value().size;
+                    daxa::ImageId           image = ti.id(t_bloom_image.view());
                     i32                     mip_width = static_cast<i32>(size.x);
                     i32                     mip_height = static_cast<i32>(size.y);
                     for (u32 mip = 1; mip < 2; ++mip)
@@ -353,19 +349,18 @@ void Renderer::init_task_graphs()
                                 {0, 0, 0},
                                 {mip_width > 1 ? mip_width / 2 : 1, mip_height > 1 ? mip_height / 2 : 1, 1},
                             }},
-
                             .filter = daxa::Filter::LINEAR,
                         });
                         mip_width = std::max(1, mip_width / 2);
                         mip_height = std::max(1, mip_height / 2);
                     }
                 }));
-    loop_task_graph.add_task(daxa::ComputeTask("blur brightpass")
-                                 .compute_shader.reads_writes(t_brightcolor_image.view().mips(1))
-                                 .compute_shader.writes(t_brightcolor_image_ping0.view())
-                                 .executes(gaussian_blur_callback, gaussian_blur_pipeline.get(), &blur_brightpass,
-                                           global_buffer, t_brightcolor_image.view().mips(1),
-                                           t_brightcolor_image.view().mips(1), t_brightcolor_image_ping0.view(), 2));
+    loop_task_graph.add_task(daxa::ComputeTask("bloom blur")
+                                 .compute_shader.reads_writes(t_bloom_image.view().mips(1))
+                                 .compute_shader.writes(t_bloom_image_ping0.view())
+                                 .executes(gaussian_blur_callback, gaussian_blur_pipeline.get(),
+                                           &frame_data.bloom_enabled, global_buffer, t_bloom_image.view().mips(1),
+                                           t_bloom_image.view().mips(1), t_bloom_image_ping0.view(), 2));
     loop_task_graph.add_task(daxa::ComputeTask("ssr")
                                  .uses_head<SSRHead::Info>()
                                  .head_views({
@@ -374,34 +369,33 @@ void Renderer::init_task_graphs()
                                      .input_image = t_draw_image.view(),
                                      .ssr_image = t_ssr_image.view(),
                                  })
-                                 .executes(ssr_callback, ssr_pipeline.get(), &(frame_data.ssr_enabled), global_buffer));
-    loop_task_graph.add_task(daxa::ComputeTask("volumetric lighting")
-                                 .uses_head<VolumetricLightingHead::Info>()
-                                 .head_views({
-                                     .depth_image = t_depth_image.view(),
-                                     .shadow_map = t_shadow_map.view(),
-                                     .output_image = t_volumetric_lighting_image.view(),
-                                 })
-                                 .executes(volumetric_lighting_callback, volumetric_lighting_pipeline.get(),
-                                           &(frame_data.vlight_enabled), global_buffer));
-    loop_task_graph.add_task(daxa::ComputeTask("blur volumetric")
-                                 .compute_shader.reads_writes(t_volumetric_lighting_image.view())
-                                 .compute_shader.writes(t_volumetric_lighting_image_ping0.view())
+                                 .executes(ssr_callback, ssr_pipeline.get(), &frame_data.ssr_enabled, global_buffer));
+    loop_task_graph.add_task(
+        daxa::ComputeTask("vlight")
+            .uses_head<VolumetricLightingHead::Info>()
+            .head_views({
+                .depth_image = t_depth_image.view(),
+                .shadow_map = t_shadow_map.view(),
+                .output_image = t_vlight_image.view(),
+            })
+            .executes(vlight_callback, vlight_pipeline.get(), &frame_data.vlight_enabled, global_buffer));
+    loop_task_graph.add_task(daxa::ComputeTask("vlight blur")
+                                 .compute_shader.reads_writes(t_vlight_image.view())
+                                 .compute_shader.writes(t_vlight_image_ping0.view())
                                  .executes(gaussian_blur_callback, gaussian_blur_pipeline.get(),
-                                           &frame_data.vlight_enabled, global_buffer,
-                                           t_volumetric_lighting_image.view(), t_volumetric_lighting_image.view(),
-                                           t_volumetric_lighting_image_ping0.view(), 4));
-    loop_task_graph.add_task(daxa::ComputeTask("composition")
+                                           &frame_data.vlight_enabled, global_buffer, t_vlight_image.view(),
+                                           t_vlight_image.view(), t_vlight_image_ping0.view(), 4));
+    loop_task_graph.add_task(daxa::ComputeTask("composite")
                                  .uses_head<CompositeHead::Info>()
                                  .head_views({
                                      .draw_image = t_draw_image.view(),
                                      .ssr_image = t_ssr_image.view(),
-                                     .bloom_image = t_brightcolor_image.view().mips(1),
-                                     .volumetric_lighting_image = t_volumetric_lighting_image.view(),
+                                     .bloom_image = t_bloom_image.view().mips(1),
+                                     .volumetric_lighting_image = t_vlight_image.view(),
                                      .output_image = gpu.t_swapchain_image.view(),
                                  })
                                  .executes(composite_callback, composite_pipeline.get(), global_buffer));
-    loop_task_graph.add_task(daxa::RasterTask("draw GUI")
+    loop_task_graph.add_task(daxa::RasterTask("gui")
                                  .color_attachment.writes(gpu.t_swapchain_image)
                                  .executes(
                                      [this, cv = gpu.t_swapchain_image.view()](daxa::TaskInterface ti)
@@ -493,11 +487,11 @@ void Renderer::render(Camera const & camera, Scene const & s)
     mat4 const cam_proj = camera.get_proj();
     mat4 const cam_view = camera.get_view();
     GPUCamera  gpu_camera = {
-         .proj = std::bit_cast<daxa_f32mat4x4>(cam_proj),
-         .inv_proj = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_proj)),
-         .view = std::bit_cast<daxa_f32mat4x4>(cam_view),
-         .inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_view)),
-         .position = std::bit_cast<daxa_f32vec3>(camera.position),
+        .proj = std::bit_cast<daxa_f32mat4x4>(cam_proj),
+        .inv_proj = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_proj)),
+        .view = std::bit_cast<daxa_f32mat4x4>(cam_view),
+        .inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_view)),
+        .position = std::bit_cast<daxa_f32vec3>(camera.position),
     };
 
     // Frustum Culling DEBUG OVERRIDE
@@ -535,7 +529,7 @@ void Renderer::render(Camera const & camera, Scene const & s)
 
 void Renderer::resize_resources(Window const & window)
 {
-    for (auto & image : resizable_iamges)
+    for (auto & image : resizable_images)
     {
         gpu.device.destroy_image(image.target_image.info().image);
         image.target_image.set_image(gpu.device.create_image(image.info_create(window)));
@@ -558,7 +552,7 @@ Renderer::~Renderer()
     gpu.device.destroy_buffer(ssao_kernel_buffer);
     gpu.device.destroy_image(t_shadow_map.info().image);
     gpu.device.destroy_image(ssao_noise_image);
-    for (auto & image : resizable_iamges)
+    for (auto & image : resizable_images)
     {
         gpu.device.destroy_image(image.target_image.info().image);
     }

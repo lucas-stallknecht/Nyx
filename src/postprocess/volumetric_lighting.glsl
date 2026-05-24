@@ -25,10 +25,10 @@ void main()
     float depth = texture(daxa_sampler2D(push.attachments.depth_image, global.nearest_clamp_sampler), uv).r;
 
     vec4 clip = vec4(ndc, depth, 1.0);
-    vec4 view = cam.inv_proj * clip;
-    view /= view.w;
+    vec4 view_pos = cam.inv_proj * clip;
+    view_pos /= view_pos.w;
 
-    vec3 world_pos = (cam.inv_view * vec4(view.xyz, 1.0)).xyz;
+    vec3 world_pos = (cam.inv_view * vec4(view_pos.xyz, 1.0)).xyz;
 
     vec3 ray_origin = cam.position.xyz;
     vec3 ray_dir = normalize(world_pos - ray_origin);

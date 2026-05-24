@@ -21,17 +21,17 @@ struct VolumetricLightingPC
 #include <daxa/utils/pipeline_manager.hpp>
 #include <daxa/utils/task_graph.hpp>
 
-inline daxa::ComputePipelineCompileInfo2 volumetric_lighting_pipeline_info()
+inline daxa::ComputePipelineCompileInfo2 vlight_pipeline_info()
 {
     return {
         .source = daxa::ShaderFile{"postprocess/volumetric_lighting.glsl"},
         .push_constant_size = sizeof(VolumetricLightingPC),
-        .name = "volumetric lighting pipeline",
+        .name = "vlight pipeline",
     };
 }
 
-inline void volumetric_lighting_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline,
-                                         daxa_b32 const * enabled, daxa::BufferId global_buffer)
+inline void vlight_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline, daxa_b32 const * enabled,
+                            daxa::BufferId global_buffer)
 {
     if (!(*enabled))
     {

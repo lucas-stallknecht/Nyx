@@ -5,7 +5,7 @@
 
 #define SHADOW_MAP_SIZE 4096
 
-struct ShadowPassPC
+struct ShadowMappingPC
 {
     daxa_f32mat4x4 model_matrix;
     daxa_BufferPtr(GPUGlobals) global_buffer;
@@ -35,7 +35,7 @@ inline daxa::RasterPipelineCompileInfo2 shadow_mapping_pipeline_info()
                 .front_face_winding = daxa::FrontFaceWinding::COUNTER_CLOCKWISE,
                 .depth_bias_enable = true,
             },
-        .push_constant_size = sizeof(ShadowPassPC),
+        .push_constant_size = sizeof(ShadowMappingPC),
         .name = "shadow depth pipeline",
     };
 }
@@ -56,7 +56,7 @@ inline void shadow_mapping_callback(daxa::TaskInterface ti, daxa::RasterPipeline
     cr.set_pipeline(*pipeline);
     cr.set_depth_bias({.slope_factor = 1.75f});
 
-    ShadowPassPC push = {
+    ShadowMappingPC push = {
         .global_buffer = ti.device.device_address(global_buffer).value(),
     };
 

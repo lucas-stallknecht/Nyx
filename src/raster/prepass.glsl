@@ -8,7 +8,7 @@ struct VOut {
     vec3 world_pos;
     vec2 uv;
     vec3 world_normal;
-    vec3 normal;
+    vec3 view_normal;
 };
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
@@ -23,7 +23,7 @@ void main()
     vec4 world_pos = push.model_matrix * vec4(vert.position, 1.0);
     gl_Position = cam.proj * cam.view * world_pos;
     v_out.world_normal = normalize(mat3(push.model_matrix) * vert.normal);
-    v_out.normal = normalize(mat3(cam.view) * v_out.world_normal);
+    v_out.view_normal = normalize(mat3(cam.view) * v_out.world_normal);
     v_out.uv = vert.uv;
     v_out.world_pos = world_pos.xyz;
 }
@@ -40,7 +40,7 @@ void main()
     GPUCamera cam = global.camera;
     GPUFrameData frame_data = global.frame_data;
 
-    out_color = vec4(0.5 + 0.5 * normalize(f_in.normal), 1.0);
+    out_color = vec4(0.5 + 0.5 * normalize(f_in.view_normal), 1.0);
 
     if (!frame_data.ssr_enabled) return;
 

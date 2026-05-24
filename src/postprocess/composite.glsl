@@ -29,14 +29,14 @@ vec3 linear_to_srgb(vec3 x)
 
 void main()
 {
-    GPUGlobals global = deref(push.global_buffer);
-    GPUFrameData frame_data = global.frame_data;
     ivec2 tex_coords = ivec2(gl_GlobalInvocationID.xy);
     ivec2 size = imageSize(daxa_image2D(push.attachments.draw_image));
-    if (tex_coords.x >= size.x || tex_coords.y >= size.y) return;
+    if (tex_coords.x >= size.x || tex_coords.y >= size.y)
+        return;
 
+    GPUGlobals global = deref(push.global_buffer);
+    GPUFrameData frame_data = global.frame_data;
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
-    vec2 texel = 1.0 / vec2(size);
 
     vec3 hdr_col = imageLoad(daxa_image2D(push.attachments.draw_image), tex_coords).rgb;
 

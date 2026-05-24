@@ -2,7 +2,7 @@
 
 #include "shadow_mapping.inl"
 
-DAXA_DECL_PUSH_CONSTANT(ShadowPassPC, push)
+DAXA_DECL_PUSH_CONSTANT(ShadowMappingPC, push)
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 

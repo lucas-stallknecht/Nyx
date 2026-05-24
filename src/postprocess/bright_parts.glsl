@@ -14,24 +14,22 @@ float luma(vec3 color) {
 
 void main()
 {
-    GPUGlobals global = deref(push.global_buffer);
-
     ivec2 tex_coords = ivec2(gl_GlobalInvocationID.xy);
     ivec2 size = imageSize(daxa_image2D(push.attachments.input_image));
     if (tex_coords.x >= size.x || tex_coords.y >= size.y)
         return;
 
+    GPUGlobals global = deref(push.global_buffer);
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
-    vec2 texel = 1.0 / vec2(size);
     vec3 color = texture(daxa_sampler2D(push.attachments.input_image, global.nearest_clamp_sampler), uv).rgb;
     vec3 out_bright_color = vec3(0.0);
 
-    if (luma(color.rgb) >= 1.0) {
+    if (luma(color) >= 1.0) {
         out_bright_color = color;
     }
 
     imageStore(
-        daxa_image2D(push.attachments.bright_parts_image),
+        daxa_image2D(push.attachments.bloom_image),
         tex_coords,
         vec4(out_bright_color, 1.0)
     );

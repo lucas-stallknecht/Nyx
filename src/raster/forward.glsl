@@ -86,10 +86,10 @@ float calc_shadow(daxa_SamplerId shadow_sampler, bool pcf_enabled) {
     // proj_coords in light NDC space
     vec3 proj_coords = f_in.light_space_pos.xyz / f_in.light_space_pos.w;
     float current_depth = proj_coords.z;
-    vec2 tex_coords = proj_coords.xy * 0.5 + 0.5;
+    vec2 shadow_uv = proj_coords.xy * 0.5 + 0.5;
 
     if (!pcf_enabled) {
-        return texture(daxa_sampler2DShadow(push.attachments.shadow_map, shadow_sampler), vec3(tex_coords, current_depth));
+        return texture(daxa_sampler2DShadow(push.attachments.shadow_map, shadow_sampler), vec3(shadow_uv, current_depth));
     }
 
     vec2 texel_size = vec2(1.0) / float(SHADOW_MAP_SIZE);
@@ -97,7 +97,7 @@ float calc_shadow(daxa_SamplerId shadow_sampler, bool pcf_enabled) {
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
             vec2 offset = vec2(x, y) * texel_size;
-            shadow += texture(daxa_sampler2DShadow(push.attachments.shadow_map, shadow_sampler), vec3(tex_coords + offset, current_depth));
+            shadow += texture(daxa_sampler2DShadow(push.attachments.shadow_map, shadow_sampler), vec3(shadow_uv + offset, current_depth));
         }
     }
     return clamp(shadow / 9.0, 0.0, 1.0);

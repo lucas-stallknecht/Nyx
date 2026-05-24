@@ -14,14 +14,14 @@ vec3 calc_view_position_from_uv(vec2 uv, mat4 inv_proj, daxa_SamplerId depth_sam
             daxa_sampler2D(push.attachments.depth_image, depth_sampler),
             uv
         ).r;
-    vec4 ndc = vec4(
+    vec4 clip = vec4(
             uv * 2.0 - 1.0,
             depth,
             1.0
         );
 
-    vec4 v = inv_proj * ndc;
-    return v.xyz / v.w;
+    vec4 view_pos = inv_proj * clip;
+    return view_pos.xyz / view_pos.w;
 }
 
 void main()
@@ -32,8 +32,8 @@ void main()
         return;
 
     GPUGlobals global = deref(push.global_buffer);
-    GPUFrameData frame_data = global.frame_data;
     GPUCamera cam = global.camera;
+    GPUFrameData frame_data = global.frame_data;
 
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
 
@@ -41,7 +41,6 @@ void main()
     // (using screen-space derivative)
     vec3 view_pos = calc_view_position_from_uv(uv, cam.inv_proj, global.postprocess_linear_sampler);
 
-    vec2 texel = 1.0 / vec2(size);
     vec3 view_normal = 2.0 * texture(
                 daxa_sampler2D(push.attachments.slim_gbuffer, global.postprocess_linear_sampler),
                 uv
