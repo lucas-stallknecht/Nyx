@@ -32,10 +32,11 @@ struct Renderer
     std::shared_ptr<daxa::ComputePipeline> ssr_pipeline;
     std::shared_ptr<daxa::ComputePipeline> volumetric_lighting_pipeline;
     std::shared_ptr<daxa::ComputePipeline> composite_pipeline;
-    daxa::SamplerId                        default_linear_sampler;
-    daxa::SamplerId                        default_nearest_sampler;
+    daxa::SamplerId                        material_linear_sampler;
+    daxa::SamplerId                        postprocess_linear_sampler;
+    daxa::SamplerId                        nearest_clamp_sampler;
+    daxa::SamplerId                        nearest_repeat_sampler;
     daxa::SamplerId                        shadow_sampler;
-    daxa::SamplerId                        ssao_noise_sampler;
     daxa::BufferId                         global_buffer;
     daxa::BufferId                         ssao_kernel_buffer;
     daxa::ImageId                          ssao_noise_image;

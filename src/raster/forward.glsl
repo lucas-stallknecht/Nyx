@@ -118,19 +118,19 @@ void main()
     float alpha = mat.base_color.a;
 
     if (mat.base_color_texture.value != 0) {
-        vec4 tex_color = texture(daxa_sampler2D(mat.base_color_texture, global.default_linear_sampler), f_in.uv);
+        vec4 tex_color = texture(daxa_sampler2D(mat.base_color_texture, global.material_linear_sampler), f_in.uv);
         surface.albedo.rgb = tex_color.rgb;
         alpha *= tex_color.a;
         if (alpha < mat.alpha_cutoff)
             discard;
     }
     if (mat.normal_texture.value != 0) {
-        vec3 tex_normal = texture(daxa_sampler2D(mat.normal_texture, global.default_linear_sampler), f_in.uv).rgb;
+        vec3 tex_normal = texture(daxa_sampler2D(mat.normal_texture, global.material_linear_sampler), f_in.uv).rgb;
         tex_normal = tex_normal * 2.0 - 1.0; // [0, 1] to [-1, 1]
         surface.normal = normalize(f_in.tbn * tex_normal);
     }
     if (mat.metallic_roughness_texture.value != 0) {
-        vec3 tex_value = texture(daxa_sampler2D(mat.metallic_roughness_texture, global.default_linear_sampler), f_in.uv).rgb;
+        vec3 tex_value = texture(daxa_sampler2D(mat.metallic_roughness_texture, global.material_linear_sampler), f_in.uv).rgb;
         surface.roughness = tex_value.g;
         surface.metallic = tex_value.b;
     }
@@ -140,7 +140,7 @@ void main()
     float ao = 1.0;
     if (frame_data.ssao_enabled) {
         vec2 ss_uv = gl_FragCoord.xy / push.draw_size;
-        ao = texture(daxa_sampler2D(push.attachments.ssao_image, global.default_linear_sampler), ss_uv).r;
+        ao = texture(daxa_sampler2D(push.attachments.ssao_image, global.postprocess_linear_sampler), ss_uv).r;
     }
     vec3 color = frame_data.ambient_light_intensity * frame_data.ambient_light_color * ao * surface.albedo;
 

@@ -23,7 +23,7 @@ void main()
 
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
     vec2 texel = 1.0 / vec2(size);
-    vec3 color = texture(daxa_sampler2D(push.attachments.input_image, global.default_nearest_sampler), uv).rgb;
+    vec3 color = texture(daxa_sampler2D(push.attachments.input_image, global.nearest_clamp_sampler), uv).rgb;
     vec3 out_bright_color = vec3(0.0);
 
     if (luma(color.rgb) >= 1.0) {

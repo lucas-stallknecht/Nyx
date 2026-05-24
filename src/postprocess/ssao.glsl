@@ -39,17 +39,17 @@ void main()
 
     // Reconstruct view space position and normal from depth-only
     // (using screen-space derivative)
-    vec3 view_pos = calc_view_position_from_uv(uv, cam.inv_proj, global.default_linear_sampler);
+    vec3 view_pos = calc_view_position_from_uv(uv, cam.inv_proj, global.postprocess_linear_sampler);
 
     vec2 texel = 1.0 / vec2(size);
     vec3 view_normal = 2.0 * texture(
-                daxa_sampler2D(push.attachments.slim_gbuffer, global.default_linear_sampler),
+                daxa_sampler2D(push.attachments.slim_gbuffer, global.postprocess_linear_sampler),
                 uv
             ).rgb - 1.0;
 
     vec2 noise_scale = size / float(SSAO_NOISE_DIM);
     vec3 random_vec = texture(
-            daxa_sampler2D(push.noise_image, push.noise_sampler),
+            daxa_sampler2D(push.noise_image, global.nearest_repeat_sampler),
             uv * noise_scale
         ).xyz;
     vec3 tangent = normalize(random_vec - view_normal * dot(random_vec, view_normal));
@@ -75,7 +75,7 @@ void main()
         float geometry_depth = calc_view_position_from_uv(
                 sample_uv,
                 cam.inv_proj,
-                global.default_linear_sampler
+                global.postprocess_linear_sampler
             ).z;
         float sample_depth = sample_pos.z;
 

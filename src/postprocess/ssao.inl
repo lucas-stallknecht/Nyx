@@ -18,7 +18,6 @@ struct SSAOPC
 {
     daxa_BufferPtr(GPUGlobals) global_buffer;
     daxa_ImageViewId noise_image;
-    daxa_SamplerId   noise_sampler;
     daxa_BufferPtr(vec3) kernel_buffer;
     DAXA_TH_BLOB(SSAOHead, attachments)
 };
@@ -38,8 +37,7 @@ inline daxa::ComputePipelineCompileInfo2 ssao_pipeline_info()
 }
 
 inline void ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * pipeline, daxa_b32 const * enabled,
-                          daxa::BufferId global_buffer, daxa::BufferId kernel_buffer, daxa::ImageId noise_image,
-                          daxa::SamplerId noise_sampler)
+                          daxa::BufferId global_buffer, daxa::BufferId kernel_buffer, daxa::ImageId noise_image)
 {
     if (!(*enabled))
     {
@@ -54,7 +52,6 @@ inline void ssao_callback(daxa::TaskInterface ti, daxa::ComputePipeline const * 
     cr.push_constant(SSAOPC{
         .global_buffer = ti.device.device_address(global_buffer).value(),
         .noise_image = noise_image.default_view(),
-        .noise_sampler = noise_sampler,
         .kernel_buffer = ti.device.device_address(kernel_buffer).value(),
         .attachments = ti.attachment_shader_blob,
     });

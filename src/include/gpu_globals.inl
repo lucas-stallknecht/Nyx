@@ -56,8 +56,10 @@ struct GPUFrameData
 
 struct GPUGlobals
 {
-    daxa_SamplerId default_linear_sampler;
-    daxa_SamplerId default_nearest_sampler;
+    daxa_SamplerId material_linear_sampler;
+    daxa_SamplerId postprocess_linear_sampler;
+    daxa_SamplerId nearest_clamp_sampler;
+    daxa_SamplerId nearest_repeat_sampler;
     daxa_SamplerId shadow_sampler;
     GPUCamera      camera;
     GPUFrameData   frame_data;

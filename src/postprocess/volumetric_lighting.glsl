@@ -22,7 +22,7 @@ void main()
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
     vec2 ndc = uv * 2.0 - 1.0;
 
-    float depth = texture(daxa_sampler2D(push.attachments.depth_image, global.default_nearest_sampler), uv).r;
+    float depth = texture(daxa_sampler2D(push.attachments.depth_image, global.nearest_clamp_sampler), uv).r;
 
     vec4 clip = vec4(ndc, depth, 1.0);
     vec4 view = cam.inv_proj * clip;
@@ -60,12 +60,10 @@ void main()
         float current_depth = light_space_pos.z;
         vec2 light_space_uv = light_space_pos.xy * 0.5 + 0.5;
 
-        float texel_depth = texture(
-                daxa_sampler2D(push.attachments.shadow_map, global.default_nearest_sampler),
-                light_space_uv
-            ).r;
-
-        float visible = float(texel_depth > current_depth - 0.01);
+        float visible = 1.0 - texture(
+                    daxa_sampler2DShadow(push.attachments.shadow_map, global.shadow_sampler),
+                    vec3(light_space_uv, current_depth - 0.005)
+                );
         float extinction = frame_data.vlight_density * step_len * visible;
 
         out_light += transmittance * extinction * frame_data.dir_light_color * frame_data.dir_light_intensity;

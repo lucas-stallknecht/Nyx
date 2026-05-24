@@ -48,7 +48,7 @@ void main()
     float metallic = mat.metallic;
 
     if (mat.metallic_roughness_texture.value != 0) {
-        vec3 tex_value = texture(daxa_sampler2D(mat.metallic_roughness_texture, global.default_linear_sampler), f_in.uv).rgb;
+        vec3 tex_value = texture(daxa_sampler2D(mat.metallic_roughness_texture, global.material_linear_sampler), f_in.uv).rgb;
         roughness = tex_value.g;
         metallic = tex_value.b;
     }

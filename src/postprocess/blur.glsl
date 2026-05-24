@@ -24,7 +24,7 @@ void main()
     for (int x = -2; x < 2; x++) {
         for (int y = -2; y < 2; y++) {
             ivec2 offset = ivec2(x, y);
-            result += texture(daxa_sampler2D(push.attachments.input_image, global.default_nearest_sampler), uv + offset * texel);
+            result += texture(daxa_sampler2D(push.attachments.input_image, global.nearest_clamp_sampler), uv + offset * texel);
         }
     }
 

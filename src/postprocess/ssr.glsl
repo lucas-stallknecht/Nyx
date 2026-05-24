@@ -30,11 +30,11 @@ void main()
 
     vec2 uv = (vec2(tex_coords) + 0.5) / vec2(size);
     vec3 original_col = texture(
-            daxa_sampler2D(push.attachments.input_image, global.default_nearest_sampler),
+            daxa_sampler2D(push.attachments.input_image, global.nearest_clamp_sampler),
             uv
         ).rgb;
     vec4 gbuffer_value = texture(
-            daxa_sampler2D(push.attachments.slim_gbuffer, global.default_nearest_sampler),
+            daxa_sampler2D(push.attachments.slim_gbuffer, global.nearest_clamp_sampler),
             uv
         );
     if (gbuffer_value.a < frame_data.ssr_min_mask)
@@ -50,7 +50,7 @@ void main()
     vec3 view_normal = normalize(2.0 * gbuffer_value.rgb - 1.0);
 
     float texel_depth = texture(
-            daxa_sampler2D(push.attachments.depth_image, global.default_nearest_sampler),
+            daxa_sampler2D(push.attachments.depth_image, global.nearest_clamp_sampler),
             uv
         ).r;
 
@@ -93,7 +93,7 @@ void main()
             break;
 
         float scene_depth = texture(
-                daxa_sampler2D(push.attachments.depth_image, global.default_nearest_sampler),
+                daxa_sampler2D(push.attachments.depth_image, global.nearest_clamp_sampler),
                 pos.xy
             ).r;
 
@@ -109,7 +109,7 @@ void main()
     if (hit)
     {
         reflection = texture(
-                daxa_sampler2D(push.attachments.input_image, global.default_nearest_sampler),
+                daxa_sampler2D(push.attachments.input_image, global.nearest_clamp_sampler),
                 pos.xy
             ).rgb;
         reflection *= frame_data.ssr_reflection_intensity;

@@ -157,7 +157,7 @@ void Renderer::init(Window const & window)
 
 void Renderer::init_resources(Window const & window)
 {
-    default_linear_sampler = gpu.device.create_sampler({
+    material_linear_sampler = gpu.device.create_sampler({
         .magnification_filter = daxa::Filter::LINEAR,
         .minification_filter = daxa::Filter::LINEAR,
         .mipmap_filter = daxa::Filter::LINEAR,
@@ -166,14 +166,29 @@ void Renderer::init_resources(Window const & window)
         .mip_lod_bias = -0.25f,
         .enable_anisotropy = true,
         .max_anisotropy = 8.0f,
-        .name = "default linear sampler",
+        .name = "material linear sampler",
     });
-    default_nearest_sampler = gpu.device.create_sampler({
+    postprocess_linear_sampler = gpu.device.create_sampler({
+        .magnification_filter = daxa::Filter::LINEAR,
+        .minification_filter = daxa::Filter::LINEAR,
+        .mipmap_filter = daxa::Filter::LINEAR,
+        .address_mode_u = daxa::SamplerAddressMode::CLAMP_TO_EDGE,
+        .address_mode_v = daxa::SamplerAddressMode::CLAMP_TO_EDGE,
+        .name = "postprocess linear sampler",
+    });
+    nearest_clamp_sampler = gpu.device.create_sampler({
+        .magnification_filter = daxa::Filter::NEAREST,
+        .minification_filter = daxa::Filter::NEAREST,
+        .address_mode_u = daxa::SamplerAddressMode::CLAMP_TO_EDGE,
+        .address_mode_v = daxa::SamplerAddressMode::CLAMP_TO_EDGE,
+        .name = "nearest clamp sampler",
+    });
+    nearest_repeat_sampler = gpu.device.create_sampler({
         .magnification_filter = daxa::Filter::NEAREST,
         .minification_filter = daxa::Filter::NEAREST,
         .address_mode_u = daxa::SamplerAddressMode::REPEAT,
         .address_mode_v = daxa::SamplerAddressMode::REPEAT,
-        .name = "default nearest sampler",
+        .name = "nearest repeat sampler",
     });
     shadow_sampler = gpu.device.create_sampler({
         .magnification_filter = daxa::Filter::LINEAR,
@@ -269,7 +284,7 @@ void Renderer::init_task_graphs()
                                      .ssao_image = t_ssao_image.view(),
                                  })
                                  .executes(ssao_callback, ssao_pipeline.get(), &(frame_data.ssao_enabled),
-                                           global_buffer, ssao_kernel_buffer, ssao_noise_image, ssao_noise_sampler));
+                                           global_buffer, ssao_kernel_buffer, ssao_noise_image));
     loop_task_graph.add_task(
         daxa::ComputeTask("blur ssao")
             .uses_head<BlurHead::Info>()
@@ -461,14 +476,6 @@ void Renderer::init_ssao()
             .name = "ssao noise image",
         });
     session.flush();
-
-    ssao_noise_sampler = gpu.device.create_sampler({
-        .magnification_filter = daxa::Filter::NEAREST,
-        .minification_filter = daxa::Filter::NEAREST,
-        .address_mode_u = daxa::SamplerAddressMode::REPEAT,
-        .address_mode_v = daxa::SamplerAddressMode::REPEAT,
-        .name = "ssao noise sampler",
-    });
 }
 
 void Renderer::render(Camera const & camera, Scene const & s)
@@ -486,11 +493,11 @@ void Renderer::render(Camera const & camera, Scene const & s)
     mat4 const cam_proj = camera.get_proj();
     mat4 const cam_view = camera.get_view();
     GPUCamera  gpu_camera = {
-        .proj = std::bit_cast<daxa_f32mat4x4>(cam_proj),
-        .inv_proj = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_proj)),
-        .view = std::bit_cast<daxa_f32mat4x4>(cam_view),
-        .inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_view)),
-        .position = std::bit_cast<daxa_f32vec3>(camera.position),
+         .proj = std::bit_cast<daxa_f32mat4x4>(cam_proj),
+         .inv_proj = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_proj)),
+         .view = std::bit_cast<daxa_f32mat4x4>(cam_view),
+         .inv_view = std::bit_cast<daxa_f32mat4x4>(glm::inverse(cam_view)),
+         .position = std::bit_cast<daxa_f32vec3>(camera.position),
     };
 
     // Frustum Culling DEBUG OVERRIDE
@@ -511,8 +518,10 @@ void Renderer::render(Camera const & camera, Scene const & s)
     frame_data.dir_light_direction = std::bit_cast<daxa_f32vec3>(light_dir);
     frame_data.dir_light_matrix = std::bit_cast<daxa_f32mat4x4>(light_proj * light_view);
     *gpu.device.buffer_host_address_as<GPUGlobals>(global_buffer).value() = GPUGlobals{
-        .default_linear_sampler = default_linear_sampler,
-        .default_nearest_sampler = default_nearest_sampler,
+        .material_linear_sampler = material_linear_sampler,
+        .postprocess_linear_sampler = postprocess_linear_sampler,
+        .nearest_clamp_sampler = nearest_clamp_sampler,
+        .nearest_repeat_sampler = nearest_repeat_sampler,
         .shadow_sampler = shadow_sampler,
         .camera = gpu_camera,
         .frame_data = frame_data,
@@ -540,10 +549,11 @@ Renderer::~Renderer()
         return;
     }
     gpu.device.wait_idle();
-    gpu.device.destroy_sampler(default_linear_sampler);
-    gpu.device.destroy_sampler(default_nearest_sampler);
+    gpu.device.destroy_sampler(material_linear_sampler);
+    gpu.device.destroy_sampler(postprocess_linear_sampler);
+    gpu.device.destroy_sampler(nearest_clamp_sampler);
+    gpu.device.destroy_sampler(nearest_repeat_sampler);
     gpu.device.destroy_sampler(shadow_sampler);
-    gpu.device.destroy_sampler(ssao_noise_sampler);
     gpu.device.destroy_buffer(global_buffer);
     gpu.device.destroy_buffer(ssao_kernel_buffer);
     gpu.device.destroy_image(t_shadow_map.info().image);
