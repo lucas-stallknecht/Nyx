@@ -81,6 +81,7 @@ inline void prepass_callback(daxa::TaskInterface ti, daxa::RasterPipeline const 
         if (latest_buffer.is_empty() || latest_buffer != draw.index_buffer)
         {
             cr.set_index_buffer({.buffer = draw.index_buffer, .index_type = daxa::IndexType::uint32});
+            latest_buffer = draw.index_buffer;
         }
         push.model_matrix = draw.transform;
         push.vertex_buffer = draw.vertex_buffer;
