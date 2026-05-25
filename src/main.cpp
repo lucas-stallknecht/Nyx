@@ -13,23 +13,38 @@
 
 namespace
 {
-    void update_ui(f32 dt, int total_triangle_count, Scene & scene, Renderer & renderer)
+    void update_ui(f32 dt, int total_triangle_count, Scene & scene, Renderer & renderer, Camera & camera, f32 aspect)
     {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        ImGui::Begin("Settings");
+
+        ImGui::Begin("View & Debug");
         ImGui::Text("%.1f ms/frame (%.1f FPS)", static_cast<double>(1000.0f * dt), static_cast<double>(1.0f / dt));
         ImGui::Text("Draw calls: %i", gpu.stats.drawcall_count);
-        ImGui::Text("Triangle count: %i / %i ", gpu.stats.triangle_count, total_triangle_count);
+        ImGui::Text("Triangles: %i / %i", gpu.stats.triangle_count, total_triangle_count);
+
         ImGui::Separator();
-        ImGui::Spacing();
+
+        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (ImGui::SliderFloat("FOV", &camera.fov, 30.0f, 120.0f))
+            {
+                camera.update_proj(aspect);
+            }
+            ImGui::DragFloat("Move Speed", &camera.move_speed, 0.1f, 0.1f, 50.0f);
+            ImGui::DragFloat("Look Sensitivity", &camera.look_sensitivity, 0.01f, 0.01f, 2.0f, "%.2f");
+        }
+
+        ImGui::Separator();
+
         ImGui::Combo("Debug View", &renderer.frame_data.debug_view, DEBUG_VIEW_NAMES, IM_ARRAYSIZE(DEBUG_VIEW_NAMES));
         ImGui::Checkbox("Draw Bounding Boxes", &scene.draw_aabb);
-        ImGui::Spacing();
-        ImGui::Spacing();
-        ImGui::Spacing();
 
-        if (ImGui::CollapsingHeader("Ambient light", ImGuiTreeNodeFlags_DefaultOpen))
+        ImGui::End();
+
+        ImGui::Begin("Renderer Settings");
+
+        if (ImGui::CollapsingHeader("Ambient Light", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::DragFloat("Intensity###ambient", &renderer.frame_data.ambient_light_intensity, 0.01f, 0.0f, 10.0f);
             ImGui::ColorEdit3("Color###ambient", &renderer.frame_data.ambient_light_color.x);
@@ -42,7 +57,7 @@ namespace
             ImGui::ColorEdit3("Color###dir", &renderer.frame_data.dir_light_color.x);
         }
 
-        if (ImGui::CollapsingHeader("Point lights", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Point Lights", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::SliderInt("Count", reinterpret_cast<int *>(&renderer.frame_data.num_point_lights), 0,
                              MAX_POINT_LIGHTS);
@@ -74,10 +89,10 @@ namespace
             ImGui::DragFloat("Shadow Far", &renderer.shadow_far, 0.1f, 1.0f, 500.0f);
         }
 
-        if (ImGui::CollapsingHeader("Post processing", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Post Processing", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            ImGui::Checkbox("Bloom enabled", std::bit_cast<bool *>(&renderer.frame_data.bloom_enabled));
-            ImGui::DragFloat("Bloom intensity", &renderer.frame_data.bloom_intensity, 0.001f, 0.001f, 5.0f);
+            ImGui::Checkbox("Bloom Enabled", std::bit_cast<bool *>(&renderer.frame_data.bloom_enabled));
+            ImGui::DragFloat("Bloom Intensity", &renderer.frame_data.bloom_intensity, 0.001f, 0.001f, 5.0f);
             ImGui::DragFloat("Exposure", &renderer.frame_data.exposure, 0.001f, 0.001f, 8.0f);
         }
 
@@ -103,7 +118,7 @@ namespace
         {
             ImGui::Checkbox("Enabled###Vlight", std::bit_cast<bool *>(&renderer.frame_data.vlight_enabled));
             ImGui::DragFloat("Density", &renderer.frame_data.vlight_density, 0.0001f, 0.0f, 0.2f);
-            ImGui::DragFloat("Step size", &renderer.frame_data.vlight_step_size, 0.001f, 0.001f, 1.0f);
+            ImGui::DragFloat("Step Size", &renderer.frame_data.vlight_step_size, 0.001f, 0.001f, 1.0f);
             ImGui::DragInt("Max Samples###VlightSamples", &renderer.frame_data.vlight_num_samples, 1, 1, 64);
         }
 
@@ -141,9 +156,36 @@ namespace
 
 } // namespace
 
-int main()
+int main(int argc, char ** argv)
 {
-    fmt::println("[App] Starting up");
+    std::string_view scene_name = "intel";
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::string_view(argv[i]) == "--scene" && i + 1 < argc)
+        {
+            scene_name = argv[++i];
+        }
+    }
+
+    std::vector<std::string> model_names;
+    if (scene_name == "intel")
+    {
+        model_names = {
+            "intel_sponza/intel_sponza_main.gltf",
+            "intel_sponza/intel_sponza_curtains.gltf",
+        };
+    }
+    else if (scene_name == "crytek")
+    {
+        model_names = {"crytek_sponza/crytek_sponza.gltf"};
+    }
+    else
+    {
+        fmt::println("[App] Unknown scene '{}'. Valid options: intel, crytek", scene_name);
+        return 1;
+    }
+
+    fmt::println("[App] Starting up (scene: {})", scene_name);
 
     Window window = {
         .width = 1920,
@@ -165,13 +207,8 @@ int main()
     Renderer renderer = {};
     renderer.init(window);
 
-    Scene                    scene = {};
-    std::vector<std::string> model_names = {
-        // "crytek_sponza/crytek_sponza.gltf",
-        "intel_sponza/intel_sponza_main.gltf",
-        "intel_sponza/intel_sponza_curtains.gltf",
-    };
-    int total_triangle_count = 0;
+    Scene scene = {};
+    int   total_triangle_count = 0;
     for (auto const & name : model_names)
     {
         auto model_result = asset_manager.load_model(std::string(ASSETS_DIR) + name);
@@ -212,7 +249,7 @@ int main()
         ImGuiIO & io = ImGui::GetIO();
         f32       dt = io.DeltaTime;
         handle_inputs(window, camera, dt);
-        update_ui(dt, total_triangle_count, scene, renderer);
+        update_ui(dt, total_triangle_count, scene, renderer, camera, aspect);
 
         scene.update(camera);
         renderer.render(camera, scene);

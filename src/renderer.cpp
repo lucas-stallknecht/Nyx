@@ -400,7 +400,9 @@ void Renderer::init_task_graphs()
                                  .executes(
                                      [this, cv = gpu.t_swapchain_image.view()](daxa::TaskInterface ti)
                                      {
-                                         bool tg_debug_ui_open = task_graph_debug_ui.update(loop_task_graph);
+#ifndef NDEBUG
+                                         task_graph_debug_ui.update(loop_task_graph);
+#endif
                                          ImGui::Render();
                                          daxa::Extent3D size = ti.info(cv).value().size;
                                          imgui_renderer.record_commands(daxa::ImGuiRecordCommandsInfo{
@@ -524,7 +526,13 @@ void Renderer::render(Camera const & camera, Scene const & s)
     // Update scene internal lookup used in callbacks
     scene = &s;
 
-    loop_task_graph.execute({.debug_ui = &task_graph_debug_ui});
+    loop_task_graph.execute({.debug_ui =
+#ifndef NDEBUG
+                                 &task_graph_debug_ui
+#else
+                                 nullptr
+#endif
+    });
 }
 
 void Renderer::resize_resources(Window const & window)

@@ -25,8 +25,8 @@ void Camera::move_right(f32 d) { position += get_right() * d * move_speed; }
 
 void Camera::rotate(vec2 delta)
 {
-    f32 yaw = -delta.x * look_sensitivity;
-    f32 pitch = -delta.y * look_sensitivity;
+    f32 yaw = -delta.x * (look_sensitivity * 0.01f);
+    f32 pitch = -delta.y * (look_sensitivity * 0.01f);
 
     // World up
     quat yaw_quat = glm::angleAxis(yaw, vec3(0.0f, 1.0f, 0.0f));

@@ -4,10 +4,10 @@
 
 struct Camera
 {
-    static constexpr f32 move_speed = 4.0f;
-    static constexpr f32 look_sensitivity = 0.002f;
     static constexpr f32 near = 0.01f;
     static constexpr f32 far = 100.0f;
+    f32                  move_speed = 4.0f;
+    f32                  look_sensitivity = 0.2f;
     f32                  fov = 60.0f;
     vec3                 position = {7.5f, 1.5f, -0.25f};
     quat                 rotation = {0.707f, 0.0f, 0.707f, 0.0f};
