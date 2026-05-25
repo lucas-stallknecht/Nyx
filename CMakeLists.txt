@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(DushaGPU
+project(Nyx
   VERSION 1.0
 )
 
