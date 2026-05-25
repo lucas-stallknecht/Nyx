@@ -11,6 +11,7 @@
       "hidden": true,
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
+        "CMAKE_MODULE_PATH": "${sourceDir}/cmake/modules",
         "DAXA_ENABLE_UTILS_FSR3": false,
         "DAXA_ENABLE_UTILS_IMGUI": true,
         "DAXA_ENABLE_UTILS_MEM": true,
@@ -20,14 +21,14 @@
         "DAXA_ENABLE_UTILS_TASK_GRAPH": true,
         "DAXA_ENABLE_TESTS": false,
         "DAXA_ENABLE_TOOLS": false,
-        "DAXA_ENABLE_STATIC_ANALYSIS": false
+        "DAXA_ENABLE_STATIC_ANALYSIS": false,
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true
       }
     },
     {
       "name": "defaults-windows",
       "hidden": true,
       "inherits": ["defaults"],
-      "generator": "Visual Studio 17 2022",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -38,7 +39,6 @@
       "name": "defaults-linux",
       "hidden": true,
       "inherits": ["defaults"],
-      "generator": "Ninja",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -46,54 +46,101 @@
       }
     },
     {
-      "name": "windows",
-      "displayName": "Windows (Visual Studio)",
-      "inherits": ["defaults-windows"]
+      "name": "clang-x86_64-windows-msvc",
+      "displayName": "Clang x86_64 Windows (MSVC ABI)",
+      "inherits": ["defaults-windows"],
+      "toolchainFile": "${sourceDir}/cmake/toolchains/clang-x86_64-windows-msvc.cmake"
     },
     {
-      "name": "linux",
-      "displayName": "Linux (Clang)",
+      "name": "cl-x86_64-windows-msvc",
+      "displayName": "CL.exe x86_64 Windows (MSVC ABI)",
+      "inherits": ["defaults-windows"],
+      "toolchainFile": "${sourceDir}/cmake/toolchains/cl-x86_64-windows-msvc.cmake"
+    },
+    {
+      "name": "gcc-x86_64-linux-gnu",
+      "displayName": "G++ x86_64 Linux (GNU ABI)",
       "inherits": ["defaults-linux"],
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
+      "toolchainFile": "${sourceDir}/cmake/toolchains/gcc-x86_64-linux-gnu.cmake"
     },
     {
-      "name": "clangdb",
-      "inherits": ["defaults"],
-      "generator": "Ninja",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
+      "name": "clang-x86_64-linux-gnu",
+      "displayName": "Clang x86_64 Linux (GNU ABI)",
+      "inherits": ["defaults-linux"],
+      "toolchainFile": "${sourceDir}/cmake/toolchains/clang-x86_64-linux-gnu.cmake"
     }
   ],
   "buildPresets": [
     {
-      "name": "windows-debug",
-      "displayName": "Windows Debug",
-      "configurePreset": "windows",
+      "name": "clang-x86_64-windows-msvc-debug",
+      "displayName": "Clang x86_64 Windows (MSVC ABI) Debug",
+      "configurePreset": "clang-x86_64-windows-msvc",
       "configuration": "Debug"
     },
     {
-      "name": "windows-release",
-      "displayName": "Windows Release",
-      "configurePreset": "windows",
+      "name": "clang-x86_64-windows-msvc-relwithdebinfo",
+      "displayName": "Clang x86_64 Windows (MSVC ABI) RelWithDebInfo",
+      "configurePreset": "clang-x86_64-windows-msvc",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "clang-x86_64-windows-msvc-release",
+      "displayName": "Clang x86_64 Windows (MSVC ABI) Release",
+      "configurePreset": "clang-x86_64-windows-msvc",
       "configuration": "Release"
     },
     {
-      "name": "linux-debug",
-      "displayName": "Linux Debug (clang)",
-      "configurePreset": "linux",
+      "name": "cl-x86_64-windows-msvc-debug",
+      "displayName": "CL.exe x86_64 Windows (MSVC ABI) Debug",
+      "configurePreset": "cl-x86_64-windows-msvc",
       "configuration": "Debug"
     },
     {
-      "name": "linux-release",
-      "displayName": "Linux Release (clang)",
-      "configurePreset": "linux",
+      "name": "cl-x86_64-windows-msvc-relwithdebinfo",
+      "displayName": "CL.exe x86_64 Windows (MSVC ABI) RelWithDebInfo",
+      "configurePreset": "cl-x86_64-windows-msvc",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "cl-x86_64-windows-msvc-release",
+      "displayName": "CL.exe x86_64 Windows (MSVC ABI) Release",
+      "configurePreset": "cl-x86_64-windows-msvc",
+      "configuration": "Release"
+    },
+    {
+      "name": "gcc-x86_64-linux-gnu-debug",
+      "displayName": "G++ x86_64 Linux (GNU ABI) Debug",
+      "configurePreset": "gcc-x86_64-linux-gnu",
+      "configuration": "Debug"
+    },
+    {
+      "name": "gcc-x86_64-linux-gnu-relwithdebinfo",
+      "displayName": "G++ x86_64 Linux (GNU ABI) RelWithDebInfo",
+      "configurePreset": "gcc-x86_64-linux-gnu",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "gcc-x86_64-linux-gnu-release",
+      "displayName": "G++ x86_64 Linux (GNU ABI) Release",
+      "configurePreset": "gcc-x86_64-linux-gnu",
+      "configuration": "Release"
+    },
+    {
+      "name": "clang-x86_64-linux-gnu-debug",
+      "displayName": "Clang x86_64 Linux (GNU ABI) Debug",
+      "configurePreset": "clang-x86_64-linux-gnu",
+      "configuration": "Debug"
+    },
+    {
+      "name": "clang-x86_64-linux-gnu-relwithdebinfo",
+      "displayName": "Clang x86_64 Linux (GNU ABI) RelWithDebInfo",
+      "configurePreset": "clang-x86_64-linux-gnu",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "clang-x86_64-linux-gnu-release",
+      "displayName": "Clang x86_64 Linux (GNU ABI) Release",
+      "configurePreset": "clang-x86_64-linux-gnu",
       "configuration": "Release"
     }
   ]

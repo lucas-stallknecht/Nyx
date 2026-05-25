@@ -17,7 +17,7 @@ endif()
 FetchContent_Declare(
     daxa
     GIT_REPOSITORY https://github.com/Ipotrick/Daxa
-    GIT_TAG        master
+    GIT_TAG        99272a9de95c496ba7bfe541b76ddbb1f3ae1ecd
     EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(daxa)

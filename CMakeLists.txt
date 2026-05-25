@@ -4,8 +4,8 @@ project(DushaGPU
   VERSION 1.0
 )
 
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL") # TEMP
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/deps.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/assets.cmake")
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,5 +38,3 @@ target_precompile_headers(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
   PRIVATE daxa::daxa glfw glm::glm fmt::fmt fastgltf::fastgltf KTX::ktx imgui::imgui
 )
-
-add_compile_definitions(ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets/")
