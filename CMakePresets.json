@@ -46,6 +46,16 @@
       }
     },
     {
+      "name": "windows-compile-commands",
+      "inherits": ["defaults-windows"],
+      "generator": "Ninja",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/clang-x86_64-windows-msvc.cmake",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_TRY_COMPILE_TARGET_TYPE": "STATIC_LIBRARY"
+      }
+    },
+    {
       "name": "clang-x86_64-windows-msvc",
       "displayName": "Clang x86_64 Windows (MSVC ABI)",
       "inherits": ["defaults-windows"],
