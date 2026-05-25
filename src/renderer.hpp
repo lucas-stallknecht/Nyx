@@ -67,6 +67,7 @@ struct Renderer
         .bloom_enabled = true,
         .bloom_intensity = 1.0f,
         .exposure = 1.0f,
+        .tonemapping_mode = 1,
         .ssao_enabled = true,
         .ssao_radius = 0.2f,
         .ssao_bias = 0.001f,

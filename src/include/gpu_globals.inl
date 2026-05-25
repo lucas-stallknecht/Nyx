@@ -34,6 +34,7 @@ struct GPUFrameData
     daxa_b32 bloom_enabled;
     daxa_f32 bloom_intensity;
     daxa_f32 exposure;
+    daxa_i32 tonemapping_mode;
 
     daxa_b32 ssao_enabled;
     daxa_f32 ssao_radius;

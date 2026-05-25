@@ -91,6 +91,9 @@ namespace
 
         if (ImGui::CollapsingHeader("Post Processing", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            static constexpr char const * TONEMAP_NAMES[] = {"None", "ACES", "Reinhard", "Uncharted 2"};
+            ImGui::Combo("Tonemapping", &renderer.frame_data.tonemapping_mode, TONEMAP_NAMES,
+                         IM_ARRAYSIZE(TONEMAP_NAMES));
             ImGui::Checkbox("Bloom Enabled", std::bit_cast<bool *>(&renderer.frame_data.bloom_enabled));
             ImGui::DragFloat("Bloom Intensity", &renderer.frame_data.bloom_intensity, 0.001f, 0.001f, 5.0f);
             ImGui::DragFloat("Exposure", &renderer.frame_data.exposure, 0.001f, 0.001f, 8.0f);
