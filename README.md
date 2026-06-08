@@ -1,6 +1,6 @@
 # Nyx GPU Playground
 
-A real-time Vulkan playground written in C++23, built on top of [Daxa](https://github.com/Ipotrick/Daxa), a modern Vulkan abstraction that provides bindless resources, a task graph, and a pipeline manager with hot-reloading.
+A real-time Vulkan playground written in C++23, built on top of [Daxa](https://github.com/Ipotrick/Daxa).
 
 ![](previews/preview_01.png)
 ![](previews/preview_vlight.png)
